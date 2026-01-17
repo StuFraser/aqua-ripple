@@ -1,0 +1,17 @@
+# Node (React)
+node_modules/
+build/
+.env
+
+# .NET (C#)
+bin/
+obj/
+*.user
+.vs/
+.vscode/
+
+# Python
+__pycache__/
+.venv/
+*.pyc
+.env
