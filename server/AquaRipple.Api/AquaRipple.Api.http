@@ -1,0 +1,6 @@
+@AquaRipple.api_HostAddress = http://localhost:5118
+
+GET {{AquaRipple.api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
