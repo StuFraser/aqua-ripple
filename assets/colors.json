@@ -1,0 +1,27 @@
+[
+    {
+        "element": "Dark Navy (Bottom wave/Text)",
+        "hex": "#1A428A",
+        "rgb": [26, 66, 138]
+    },
+    {
+        "element": "Medium Blue (Middle wave)",
+        "hex": "#009CDE",
+        "rgb": [0, 156, 222]
+    },
+    {
+        "element": "Teal/Aqua (Top wave)",
+        "hex": "#66C7C5",
+        "rgb": [102, 199, 197]
+    },
+    {
+        "element": "Lime Green (Top drop/Text)",
+        "hex": "#8CC63F",
+        "rgb": [140, 198, 63]
+    },
+    {
+        "element": "Location Pin (Cyan)",
+        "hex": "#00ADEF",
+        "rgb": [0, 173, 239]
+    }
+]
