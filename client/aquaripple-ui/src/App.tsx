@@ -1,28 +1,27 @@
-import { useState } from 'react'
 import './App.css'
+import Header from './layout/header'
+import Footer from './layout/footer'
+import MapSearch from './components/map-search'
+import MapView from './components/map-view'
 
 function App() {
-  const [count, setCount] = useState(0)
 
   return (
-    <>
-      <div>
+    <div className="flex flex-col h-screen overflow-hidden">
+      
+      <Header />
 
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+      <main className="flex-1 overflow-y-auto">
+        <MapSearch />
+        <MapView />
+      </main>
+
+<p>here</p>
+
+      <Footer />
+      
+    </div>
+  );
 }
 
 export default App
