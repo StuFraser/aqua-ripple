@@ -1,4 +1,5 @@
 import './App.css'
+import 'leaflet/dist/leaflet.css'
 import Header from './layout/header'
 import Footer from './layout/footer'
 import MapSearch from './components/map-search'
@@ -11,12 +12,10 @@ function App() {
       
       <Header />
 
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto p-4">
         <MapSearch />
         <MapView />
       </main>
-
-<p>here</p>
 
       <Footer />
       
