@@ -37,3 +37,14 @@ aqua-ripple/
 ├── server/       # .NET 8 Web API (The Brain)
 ├── analytics/    # Python FastAPI (The Satellite Engine)
 └── docs/         # Architectural diagrams and research
+
+## 🛰️ Data & Attributions
+
+This project utilizes satellite imagery and environmental data provided by:
+
+* **European Space Agency (ESA):** Contains modified Copernicus Sentinel data (2026).
+* **Microsoft Planetary Computer:** Data hosting and API access via the [Planetary Computer](https://planetarycomputer.microsoft.com/).
+* **Analysis:** Automated visual and spectral analysis powered by **Google Gemini**.
+
+### Licensing
+Sentinel-2 data is provided under the [Legal notice on the use of Copernicus Sentinel Data and Service Information](https://sentinels.copernicus.eu/documents/247904/690755/Sentinel_Data_Legal_Notice).

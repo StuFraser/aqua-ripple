@@ -12,6 +12,10 @@ const Footer: React.FC = () => {
                     professionals. This information is provided "as-is" for experimental 
                     purposes only. Use at your own risk.
                 </p>
+                <p>
+                    Satellite imagery provided by the European Space Agency via the Microsoft Planetary Computer. <br />
+                    Contains modified Copernicus Sentinel data 2026
+                </p>
             </div>
         </footer>
     );
