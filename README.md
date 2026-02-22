@@ -37,6 +37,7 @@ aqua-ripple/
 ├── server/       # .NET 8 Web API (The Brain)
 ├── analytics/    # Python FastAPI (The Satellite Engine)
 └── docs/         # Architectural diagrams and research
+```
 
 ## 🛰️ Data & Attributions
 
