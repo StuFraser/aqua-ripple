@@ -1,0 +1,39 @@
+services:
+
+  client:
+    build: ./client/aquaripple-ui
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./client/aquaripple-ui:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:5000
+
+  server:
+    build: ./server/AquaRipple.Api
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - MongoDB__ConnectionString=mongodb://mongo:27017
+      - Analytics__BaseUrl=http://analytics:8001
+    depends_on:
+      - mongo
+
+  analytics:
+    build: ./analytics
+    ports:
+      - "8001:8001"
+    environment:
+      - ENV=development
+
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  mongo_data:

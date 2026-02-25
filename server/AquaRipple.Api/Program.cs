@@ -38,6 +38,13 @@ builder.Services.AddScoped(sp => {
 });
 builder.Services.AddScoped<WaterQualityService>();
 
+builder.Services.AddHttpClient("Overpass", client =>
+{
+    client.BaseAddress = new Uri("https://overpass-api.de/api/");
+    client.DefaultRequestHeaders.Add("User-Agent", "AquaRipple/1.0");
+});
+builder.Services.AddScoped<LocationService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

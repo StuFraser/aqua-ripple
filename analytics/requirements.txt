@@ -17,3 +17,5 @@ planetary-computer
 pystac-client
 rasterio
 stackstac
+pydantic_settings==2.7.0
+google-genai
