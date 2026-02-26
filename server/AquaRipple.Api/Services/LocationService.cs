@@ -20,13 +20,15 @@ public class LocationService
         {
             // Query Overpass for any water body within 50m of the given coordinates
             var query = $@"
-                [out:json];
-                (
-                  way(around:200,{latitude},{longitude})[""natural""=""water""];
-                  way(around:200,{latitude},{longitude})[""waterway""];
-                  relation(around:200,{latitude},{longitude})[""natural""=""water""];
-                );
-                out tags;";
+                    [out:json];
+                    is_in({latitude},{longitude})->.a;
+                    (
+                    way(pivot.a)[""natural""=""water""];
+                    way(pivot.a)[""water""];
+                    relation(pivot.a)[""natural""=""water""];
+                    relation(pivot.a)[""water""];
+                    );
+                    out tags;";
 
             var content = new FormUrlEncodedContent(new[]
             {
