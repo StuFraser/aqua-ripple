@@ -37,14 +37,14 @@ builder.Services.AddScoped(sp => {
     return client.GetDatabase(mongoSettings["DatabaseName"]);
 });
 builder.Services.AddScoped<WaterQualityService>();
-
-builder.Services.AddHttpClient("Overpass", client =>
-{
-    client.BaseAddress = new Uri("https://overpass-api.de/api/");
-    client.DefaultRequestHeaders.Add("User-Agent", "AquaRipple/1.0");
-});
 builder.Services.AddScoped<LocationService>();
 
+builder.Services.AddHttpClient("Analytics", client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["Analytics:BaseUrl"]
+        ?? throw new InvalidOperationException("Analytics:BaseUrl is not configured."));
+    client.Timeout = TimeSpan.FromSeconds(15);
+});
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowClient", policy =>
@@ -70,14 +70,14 @@ app.UseAuthorization();
 app.UseCors("AllowClient");
 app.MapControllers();
 
-var builder_debug = WebApplication.CreateBuilder(args);
-using (var serviceScope = app.Services.CreateScope())
-{
-    var actionProvider = serviceScope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Mvc.Infrastructure.IActionDescriptorCollectionProvider>();
-    foreach (var action in actionProvider.ActionDescriptors.Items)
-    {
-        Console.WriteLine($"Found Route: {action.AttributeRouteInfo?.Template} -> {action.DisplayName}");
-    }
-}
+// var builder_debug = WebApplication.CreateBuilder(args);
+// using (var serviceScope = app.Services.CreateScope())
+// {
+//     var actionProvider = serviceScope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Mvc.Infrastructure.IActionDescriptorCollectionProvider>();
+//     foreach (var action in actionProvider.ActionDescriptors.Items)
+//     {
+//         Console.WriteLine($"Found Route: {action.AttributeRouteInfo?.Template} -> {action.DisplayName}");
+//     }
+// }
 
 app.Run();

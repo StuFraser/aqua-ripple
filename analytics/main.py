@@ -9,7 +9,7 @@ from google import genai
 from google.genai import types
 import json
 import re
-from models import WaterQualityResult
+from models import WaterQualityResult, LocationResult
 from typing import Dict
 
 app = FastAPI(title="AquaRipple Water Quality Analyser")
@@ -154,7 +154,48 @@ async def analyse(coords: Coordinates, analysis_mode: bool = True, settings: Aqu
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
+@app.post("/location/lookup", response_model=LocationResult)
+async def location_lookup(coords: Coordinates, settings: AquaSettings = Depends(get_settings)):
+    try:
+        client = genai.Client(api_key=settings.gemini_api_key)
 
+        prompt = f"""You are a precise geographic lookup tool. Given EXACTLY these coordinates: latitude={coords.lat}, longitude={coords.lon}
+
+            Your task: identify the water body located AT these exact coordinates.
+
+            Rules:
+            - Only return a water body if it is directly at or immediately touching these coordinates (within ~100 metres)
+            - Do NOT return nearby landmarks, famous lakes, or well-known features that are not at this exact location
+            - Do NOT guess or infer based on general area knowledge
+            - If you are not confident a water body exists at exactly these coordinates, set is_water to false
+            - Distance matters: a result 1km away is wrong, 10km away is very wrong
+
+            Respond only with valid JSON, no markdown:
+            {{
+            "is_water": true or false,
+            "name": "exact name of water body at these coordinates or null",
+            "water_type": "river|lake|estuary|ocean|reservoir|canal|stream|other or null",
+            "description": "1-2 sentence description or null",
+            "message": "null if is_water is true, otherwise friendly message that location appears to be on land"
+            }}"""
+
+        response = client.models.generate_content(
+            model=settings.gemini_model,
+            contents=[prompt],
+        )
+
+        raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", response.text.strip(), flags=re.MULTILINE).strip()
+        result_dict = json.loads(raw)
+        result_dict["latitude"] = coords.lat
+        result_dict["longitude"] = coords.lon
+
+        return LocationResult.model_validate(result_dict)
+
+    except json.JSONDecodeError as e:
+        raise HTTPException(500, f"Gemini returned malformed JSON: {e}")
+    except Exception as e:
+        raise HTTPException(500, f"Location lookup failed: {e}")
+    
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

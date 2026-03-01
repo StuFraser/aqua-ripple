@@ -73,3 +73,13 @@ class WaterQualityResult(BaseModel):
     concerns: list[str]
     confidence: float = Field(ge=0.0, le=1.0)
     timestamp: datetime = Field(default_factory=datetime.now)
+
+
+class LocationResult(BaseModel):
+    is_water: bool
+    name: str | None
+    water_type: str | None
+    description: str | None
+    message: str | None
+    latitude: float
+    longitude: float

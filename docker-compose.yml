@@ -16,7 +16,8 @@ services:
       - "5000:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - MongoDB__ConnectionString=mongodb://mongo:27017
+      - MongoDbSettings__ConnectionString=mongodb://mongo:27017
+      - MongoDbSettings__DatabaseName=aquaripple
       - Analytics__BaseUrl=http://analytics:8001
     depends_on:
       - mongo
