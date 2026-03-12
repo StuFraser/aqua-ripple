@@ -9,6 +9,9 @@ obj/
 *.user
 .vs/
 .vscode/
+appsettings.Development.json
+appsettings.*.json
+!appsettings.json
 
 # Python
 __pycache__/

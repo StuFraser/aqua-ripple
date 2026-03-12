@@ -37,7 +37,8 @@ builder.Services.AddScoped(sp => {
     return client.GetDatabase(mongoSettings["DatabaseName"]);
 });
 builder.Services.AddScoped<WaterQualityService>();
-builder.Services.AddScoped<LocationService>();
+builder.Services.AddScoped<GetWetService>();
+
 
 builder.Services.AddHttpClient("Analytics", client =>
 {
@@ -45,6 +46,18 @@ builder.Services.AddHttpClient("Analytics", client =>
         ?? throw new InvalidOperationException("Analytics:BaseUrl is not configured."));
     client.Timeout = TimeSpan.FromSeconds(15);
 });
+
+builder.Services.AddHttpClient("GetWet", client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["GetWet:BaseUrl"]
+        ?? throw new InvalidOperationException("GetWet:BaseUrl is not configured."));
+    client.DefaultRequestHeaders.Add("x-api-key", builder.Configuration["GetWet:ApiKey"]
+        ?? throw new InvalidOperationException("GetWet:ApiKey is not configured."));
+    client.Timeout = TimeSpan.FromSeconds(60);
+});
+
+
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowClient", policy =>
