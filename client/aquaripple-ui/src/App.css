@@ -1,18 +1,48 @@
 @import "tailwindcss";
 
+/* ── Brand tokens ────────────────────────────────────────────────────────── */
 @theme {
-  --color-aqua-dark: #1A428A;
-  --color-aqua-brand: #009CDE;
+  --color-aqua-dark:   #1A428A;
+  --color-aqua-brand:  #009CDE;
   --color-aqua-accent: #66C7C5;
-  --color-ripple: #8CC63F;
+  --color-ripple:      #8CC63F;
+
+  --font-sans: system-ui, Avenir, Helvetica, Arial, sans-serif;
 }
 
-html,
-body,
-#root {
-  height: 100%;
-  padding: 0;
-  margin: 0 auto;
-  text-align: center;
+/* ── Base resets ─────────────────────────────────────────────────────────── */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.5;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    @apply text-aqua-dark bg-white;
+  }
+
+  a {
+    @apply text-aqua-brand no-underline;
+  }
+
+  a:hover {
+    @apply text-aqua-accent;
+  }
 }
 
+
+.leaflet-container {
+  z-index: 0;
+}

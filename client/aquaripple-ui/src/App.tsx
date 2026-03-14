@@ -11,20 +11,24 @@ function App() {
     const [clickedLocation, setClickedLocation] = useState<[number, number] | undefined>(undefined);
 
     return (
-        <div className="flex flex-col h-screen overflow-hidden">
+        <div className="flex flex-col h-screen bg-gray-50">
             <Header />
-            <main className="flex-1 overflow-y-auto p-4 flex gap-4">
-                <div className="flex-1 min-w-0">
-                    <MapSearch />
-                    <MapView onLocationSelect={setClickedLocation} />
+            <main className="flex-1 overflow-hidden flex">
+                <div className="flex-1 flex flex-col min-w-0">
+                    <div className="p-3 border-b border-gray-200 bg-white">
+                        <MapSearch />
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                        <MapView onLocationSelect={setClickedLocation} />
+                    </div>
                 </div>
-                <div className="w-80 shrink-0">
+                <aside className="w-80 shrink-0 border-l border-gray-200 bg-white overflow-y-auto">
                     <MapInfo clickedLocation={clickedLocation} />
-                </div>
+                </aside>
             </main>
             <Footer />
         </div>
     );
 }
 
-export default App
+export default App;
