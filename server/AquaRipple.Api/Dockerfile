@@ -3,4 +3,5 @@ WORKDIR /app
 COPY *.csproj ./
 RUN dotnet restore
 COPY . .
-CMD ["dotnet", "watch", "run", "--urls", "http://0.0.0.0:8080"]
+RUN dotnet publish -c Release -o /out
+CMD ["dotnet", "/out/AquaRipple.Api.dll"]

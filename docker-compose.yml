@@ -19,8 +19,13 @@ services:
       - MongoDbSettings__ConnectionString=mongodb://mongo:27017
       - MongoDbSettings__DatabaseName=aquaripple
       - Analytics__BaseUrl=http://analytics:8001
+      - GetWet__BaseUrl=https://getwet-eha7a2fufhhyenae.australiaeast-01.azurewebsites.net
+      - GetWet__ApiKey=${GETWET_API_KEY}
     depends_on:
       - mongo
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
 
   analytics:
     build: ./analytics

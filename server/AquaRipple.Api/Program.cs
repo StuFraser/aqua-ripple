@@ -38,6 +38,7 @@ builder.Services.AddScoped(sp => {
 });
 builder.Services.AddScoped<WaterQualityService>();
 builder.Services.AddScoped<GetWetService>();
+builder.Services.AddScoped<GeoNamesService>();
 
 
 builder.Services.AddHttpClient("Analytics", client =>
@@ -54,6 +55,12 @@ builder.Services.AddHttpClient("GetWet", client =>
     client.DefaultRequestHeaders.Add("x-api-key", builder.Configuration["GetWet:ApiKey"]
         ?? throw new InvalidOperationException("GetWet:ApiKey is not configured."));
     client.Timeout = TimeSpan.FromSeconds(60);
+});
+
+builder.Services.AddHttpClient("GeoNames", client =>
+{
+    client.BaseAddress = new Uri("https://secure.geonames.org/");
+    client.Timeout = TimeSpan.FromSeconds(10);
 });
 
 
