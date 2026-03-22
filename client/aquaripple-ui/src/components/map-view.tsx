@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
+import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
@@ -96,17 +96,44 @@ function getLocationErrorMessage(error: GeolocationPositionError): string {
     }
 }
 
+// ── FlyTo controller (lives inside MapContainer) ────────────────────────────
+
+interface FlyToControllerProps {
+    flyToRef: React.MutableRefObject<((lat: number, lng: number) => void) | null>;
+}
+
+function FlyToController({ flyToRef }: FlyToControllerProps) {
+    const map = useMap();
+    useEffect(() => {
+        flyToRef.current = (lat: number, lng: number) => {
+            map.flyTo([lat, lng], Math.max(map.getZoom(), 13), { duration: 1.2 });
+        };
+    }, [map, flyToRef]);
+    return null;
+}
+
+// ── Public handle ────────────────────────────────────────────────────────────
+
+export interface MapViewHandle {
+    flyTo: (lat: number, lng: number) => void;
+}
+
 // ── Component ───────────────────────────────────────────────────────────────
 
 interface MapViewProps {
     onLocationSelect: (location: [number, number]) => void;
 }
 
-const MapView: React.FC<MapViewProps> = ({ onLocationSelect }) => {
+const MapView = forwardRef<MapViewHandle, MapViewProps>(({ onLocationSelect }, ref) => {
     const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
     const [clickedMarker, setClickedMarker] = useState<[number, number] | undefined>(undefined);
     const [locationError, setLocationError] = useState<GeolocationPositionError | null>(null);
     const lastWarmedLocationRef = useRef<[number, number] | null>(null);
+    const flyToFnRef = useRef<((lat: number, lng: number) => void) | null>(null);
+
+    useImperativeHandle(ref, () => ({
+        flyTo: (lat, lng) => flyToFnRef.current?.(lat, lng),
+    }));
 
     useEffect(() => {
         navigator.geolocation.getCurrentPosition(
@@ -156,6 +183,7 @@ const MapView: React.FC<MapViewProps> = ({ onLocationSelect }) => {
                 doubleClickZoom={true}
                 dragging={true}
             >
+                <FlyToController flyToRef={flyToFnRef} />
                 <MapEventHandler
                     onMapClick={handleMapClick}
                     lastWarmedLocationRef={lastWarmedLocationRef}
@@ -175,6 +203,8 @@ const MapView: React.FC<MapViewProps> = ({ onLocationSelect }) => {
             </MapContainer>
         </div>
     );
-};
+});
+
+MapView.displayName = 'MapView';
 
 export default MapView;

@@ -156,7 +156,7 @@ public class GeoNamesService
     {
         var client = _httpClientFactory.CreateClient("GeoNames");
         // Search preferring water bodies (featureClass=H) but also accepting other features
-        var url = $"searchJSON?q={Uri.EscapeDataString(query)}&maxRows={maxRows}&username={_username}&orderby=relevance";
+        var url = $"searchJSON?q={Uri.EscapeDataString(query)}&maxRows={maxRows}&username={_username}&orderby=relevance&featureClass=H";
 
         try
         {
