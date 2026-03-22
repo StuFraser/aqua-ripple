@@ -1,14 +1,10 @@
 import React, { useEffect, useState } from "react";
 import PinInfo from "./pin-info";
 import LocationResults from "./location-results";
+import type LocationLookupResponse from "../types/LocationLookupResponse";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 
-interface LocationLookupResponse {
-    isWaterBody: boolean;
-    waterBodyName: string | null;
-    message: string | null;
-}
 
 interface MapInfoProps {
     clickedLocation: [number, number] | undefined;
@@ -33,6 +29,7 @@ const MapInfo: React.FC<MapInfoProps> = ({ clickedLocation }) => {
                 if (!res.ok) throw new Error('Lookup failed');
                 return res.json();
             })
+
             .then(data => setLocationData(data))
             .catch(() => setIsError(true));
     }, [clickedLocation]);
@@ -54,7 +51,7 @@ const MapInfo: React.FC<MapInfoProps> = ({ clickedLocation }) => {
                 <h2 className="text-sm font-semibold text-aqua-dark uppercase tracking-wider mb-3">Water Quality</h2>
                 <LocationResults
                     clickedLocation={clickedLocation}
-                    isWaterBody={locationData?.isWaterBody}
+                    isWaterBody={locationData?.is_water}
                 />
             </div>
         </div>

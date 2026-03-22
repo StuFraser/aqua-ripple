@@ -36,16 +36,16 @@ builder.Services.AddScoped(sp => {
     var client = sp.GetRequiredService<IMongoClient>();
     return client.GetDatabase(mongoSettings["DatabaseName"]);
 });
-builder.Services.AddScoped<WaterQualityService>();
 builder.Services.AddScoped<GetWetService>();
 builder.Services.AddScoped<GeoNamesService>();
+builder.Services.AddScoped<AnalysisService>();
 
 
 builder.Services.AddHttpClient("Analytics", client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["Analytics:BaseUrl"]
         ?? throw new InvalidOperationException("Analytics:BaseUrl is not configured."));
-    client.Timeout = TimeSpan.FromSeconds(15);
+    client.Timeout = TimeSpan.FromSeconds(60);
 });
 
 builder.Services.AddHttpClient("GetWet", client =>

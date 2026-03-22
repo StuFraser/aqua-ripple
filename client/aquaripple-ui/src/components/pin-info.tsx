@@ -1,11 +1,7 @@
 import React from "react";
 import Badge from "./primitives/badge";
+import type LocationLookupResponse from "../types/LocationLookupResponse";
 
-interface LocationLookupResponse {
-    isWaterBody: boolean;
-    waterBodyName: string | null;
-    message: string | null;
-}
 
 interface PinInfoProps {
     clickedLocation: [number, number] | undefined;
@@ -46,13 +42,13 @@ const PinInfo: React.FC<PinInfoProps> = ({ clickedLocation, locationData: data }
 
     return (
         <div className="flex flex-col gap-2">
-            <Badge variant={data?.isWaterBody ? "water" : "land"}>
-                {data?.isWaterBody ? "💧 " : "🏝 "}
-                {data?.isWaterBody ? (data.waterBodyName ?? "Water Body") : "Not a water body"}
+            <Badge variant={data?.is_water ? "water" : "land"}>
+                {data?.is_water ? "💧 " : "🏝 "}
+                {data?.is_water ? (data.name ?? "Water Body") : "Not a water body"}
             </Badge>
-            {data?.message && (
+            {/* {data?.message && (
                 <p className="text-xs text-gray-500 leading-relaxed">{data.message}</p>
-            )}
+            )} */}
             <p className="text-xs text-gray-300 font-mono">
                 {clickedLocation[0].toFixed(5)}, {clickedLocation[1].toFixed(5)}
             </p>
