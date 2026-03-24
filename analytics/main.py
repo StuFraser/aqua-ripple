@@ -11,6 +11,7 @@ import json
 import re
 from models import WaterQualityResult, LocationResult
 from typing import Dict
+from rules_engine import build_activity_safety, derive_overall_quality
 
 app = FastAPI(title="AquaRipple Water Quality Analyser")
 
@@ -85,19 +86,18 @@ Image sequence:
 Return this exact JSON structure:
 {
     "indicators": {
-        "chlorophyll_a": {"level": "low|moderate|high|very_high", "value": <float µg/L>, "confidence": <float>},
-        "turbidity": {"level": "low|moderate|high|very_high", "value": <float NTU>, "confidence": <float>},
+        "chlorophyll_a": {"level": "low|moderate|high|very_high", "confidence": <float>},
+        "turbidity": {"level": "low|moderate|high|very_high", "confidence": <float>},
         "algae_bloom": {"detected": <bool>, "severity": "none|minor|moderate|severe", "confidence": <float>},
         "water_clarity": {"level": "clear|moderate|turbid|opaque", "secchi_depth_estimate": <float metres>, "confidence": <float>},
         "cyanobacteria_risk": {"level": "low|moderate|high|very_high", "confidence": <float>}
-    },
-    "water_bodies_detected": <bool>,
-    "overall_quality": "excellent|good|fair|poor|critical",
-    "overall_quality_score": <int 0-100>,
-    "summary": "<2-3 sentence plain English summary>",
-    "concerns": ["<specific concern>"],
-    "confidence": <float overall>
-}"""
+    }
+}
+
+Rules:
+- Return only what the imagery supports, do not infer beyond what is visible
+- Set severity to "none" when algae_bloom detected is false
+- Confidence values are floats between 0 and 1"""
 
     contents = [
         prompt,
@@ -118,16 +118,21 @@ Return this exact JSON structure:
     except json.JSONDecodeError as e:
         raise HTTPException(500, f"Gemini returned malformed JSON: {e}. Raw response: {response.text[:300]}")
 
-    result_dict["status"] = "success"
+    # Build derived fields from indicators
+    indicators = result_dict["indicators"]
+    result_dict["activity_safety"] = build_activity_safety(indicators)
+    result_dict["overall_quality"] = derive_overall_quality(indicators)
+
+    # Attach metadata
     result_dict["mode"] = "ai"
-    result_dict["metadata"] = metadata
+    result_dict["item_id"] = metadata["item_id"]
+    result_dict["datetime"] = metadata["datetime"]
 
     try:
         return WaterQualityResult.model_validate(result_dict)
     except Exception as e:
         raise HTTPException(500, f"AI response failed schema validation: {e}")
-
-
+    
 def indices_water_analysis(image_package: dict) -> WaterQualityResult:
     # TODO: Implement calculated spectral indices mode
     raise HTTPException(501, "Indices analysis mode not yet implemented")

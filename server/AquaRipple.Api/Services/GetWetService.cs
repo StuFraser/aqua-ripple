@@ -1,5 +1,6 @@
-using System.Text.Json;
+using Microsoft.AspNetCore.Mvc;
 using AquaRipple.Api.Models;
+
 namespace AquaRipple.Api.Services;
 
 public class GetWetService
@@ -13,35 +14,32 @@ public class GetWetService
         _logger = logger;
     }
 
-    public void WarmCache(double latitude, double longitude)
+    public async Task<ContentResult> CheckAsync(double latitude, double longitude, int marginMetres = 10)
     {
-        // Intentionally not awaited — fire and forget
-        _ = WarmCacheAsync(latitude, longitude);
+        var client = _httpClientFactory.CreateClient("GetWet");
+        var response = await client.GetAsync(
+            $"/water/check?lat={latitude}&lng={longitude}&margin_m={marginMetres}");
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync();
+        _logger.LogInformation("GetWet check completed for ({Lat}, {Lon})", latitude, longitude);
+
+        return new ContentResult
+        {
+            Content = json,
+            ContentType = "application/json",
+            StatusCode = 200
+        };
     }
 
     public async Task<string> WarmCacheAsync(double latitude, double longitude)
     {
         var client = _httpClientFactory.CreateClient("GetWet");
         var response = await client.PostAsync(
-            $"/cache/warm?lat={latitude}&lng={longitude}",
-            null);
+            $"/cache/warm?lat={latitude}&lng={longitude}", null);
         response.EnsureSuccessStatusCode();
-        var content = await response.Content.ReadAsStringAsync();
-        _logger.LogInformation("GetWet warm completed {Status} for ({Lat}, {Lon})",
-            response.StatusCode, latitude, longitude);
-        return content;
-    }
 
-    public async Task<WaterCheckResponse?> CheckAsync(double latitude, double longitude, int marginMetres = 10)
-    {
-        var client = _httpClientFactory.CreateClient("GetWet");
-        var response = await client.GetAsync(
-            $"/water/check?lat={latitude}&lng={longitude}&margin_m={marginMetres}");
-        response.EnsureSuccessStatusCode();
-        var content = await response.Content.ReadFromJsonAsync<WaterCheckResponse>(
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-        _logger.LogInformation("GetWet check completed for ({Lat}, {Lon}): isWater={IsWater}",
-            latitude, longitude, content?.IsWater);
-        return content;
+        _logger.LogInformation("GetWet warm completed for ({Lat}, {Lon})", latitude, longitude);
+        return await response.Content.ReadAsStringAsync();
     }
 }

@@ -37,11 +37,10 @@ public class GeoNamesController : ControllerBase
     }
 
     /// <summary>
-    /// Determines whether a given lat/lon coordinate sits on or near a water body.
-    /// Replaces the GetWet/Overture DuckDB approach with a fast GeoNames lookup.
-    /// POST /api/geonames/water-detect
-    /// Body: { "latitude": -37.8, "longitude": 175.3 }
+    /// Deprecated — use POST /api/getwet/check instead.
+    /// GeoNames radius-based detection proved unreliable for point detection.
     /// </summary>
+    [Obsolete("Use GetWetService for point detection.")]
     [HttpPost("water-detect")]
     public async Task<ActionResult<LocationLookupResponse>> WaterDetect([FromBody] LocationRequest request)
     {

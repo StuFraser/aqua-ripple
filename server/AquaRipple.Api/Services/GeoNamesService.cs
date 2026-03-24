@@ -99,10 +99,14 @@ public class GeoNamesService
     }
 
     /// <summary>
-    /// Determines whether a lat/lon point is on or very close to a water body by
-    /// querying GeoNames findNearbyJSON filtered to featureClass=H.
-    /// Returns a LocationLookupResponse with IsWaterBody and optional name.
+    /// Determines whether a lat/lon point is on or very close to a water body.
+    /// 
+    /// NOTE: Deprecated — do not use. GeoNames findNearby operates on a radius
+    /// basis and proved unreliable for point detection, frequently returning false
+    /// positives on land near water and missing smaller water bodies entirely.
+    /// Use GetWetService.CheckAsync for point-based water detection instead.
     /// </summary>
+    [Obsolete("Unreliable for point detection. Use GetWetService.CheckAsync instead.")]
     public async Task<LocationLookupResponse> CheckWaterBodyAsync(double lat, double lng, int radiusKm = 1)
     {
         var client = _httpClientFactory.CreateClient("GeoNames");
@@ -125,9 +129,9 @@ public class GeoNamesService
             // Look for the first result that is a recognised water feature code
             foreach (var feature in geonames.EnumerateArray())
             {
-                var fcl  = feature.TryGetProperty("fcl",  out var fclEl)  ? fclEl.GetString()  : null;
-                var fcode = feature.TryGetProperty("fcode", out var fcEl)  ? fcEl.GetString()   : null;
-                var name  = feature.TryGetProperty("name",  out var nameEl)? nameEl.GetString() : null;
+                var fcl = feature.TryGetProperty("fcl", out var fclEl) ? fclEl.GetString() : null;
+                var fcode = feature.TryGetProperty("fcode", out var fcEl) ? fcEl.GetString() : null;
+                var name = feature.TryGetProperty("name", out var nameEl) ? nameEl.GetString() : null;
                 var fclName = feature.TryGetProperty("fclName", out var fclNameEl) ? fclNameEl.GetString() : null;
                 var fcodeName = feature.TryGetProperty("fcodeName", out var fcodeNameEl) ? fcodeNameEl.GetString() : null;
 
@@ -173,11 +177,11 @@ public class GeoNamesService
 
             foreach (var feature in geonames.EnumerateArray())
             {
-                var name     = feature.TryGetProperty("name",       out var nEl)  ? nEl.GetString()             : null;
-                var country  = feature.TryGetProperty("countryName",out var cEl)  ? cEl.GetString()             : null;
-                var fcl      = feature.TryGetProperty("fcl",        out var fclEl)? fclEl.GetString()           : null;
-                var fcodeName= feature.TryGetProperty("fcodeName",  out var fnEl) ? fnEl.GetString()            : null;
-                var adminName= feature.TryGetProperty("adminName1", out var aEl)  ? aEl.GetString()             : null;
+                var name = feature.TryGetProperty("name", out var nEl) ? nEl.GetString() : null;
+                var country = feature.TryGetProperty("countryName", out var cEl) ? cEl.GetString() : null;
+                var fcl = feature.TryGetProperty("fcl", out var fclEl) ? fclEl.GetString() : null;
+                var fcodeName = feature.TryGetProperty("fcodeName", out var fnEl) ? fnEl.GetString() : null;
+                var adminName = feature.TryGetProperty("adminName1", out var aEl) ? aEl.GetString() : null;
 
                 double lat = 0, lng = 0;
                 if (feature.TryGetProperty("lat", out var latEl)) double.TryParse(latEl.GetString(), out lat);

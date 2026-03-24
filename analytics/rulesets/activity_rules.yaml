@@ -1,0 +1,191 @@
+# AquaRipple Activity Safety Rules
+# Resolution strategy: worst single indicator wins
+# Levels: low | moderate | high | very_high (indicators)
+#         none | minor | moderate | severe (algae_bloom severity)
+#         clear | moderate | turbid | opaque (water_clarity)
+
+activities:
+
+  swimming:
+    description: "Direct water contact including swimming, wading and water sports"
+    indicators:
+      cyanobacteria_risk:
+        low: safe
+        moderate: caution
+        high: unsafe
+        very_high: unsafe
+      algae_bloom:
+        severity:
+          none: safe
+          minor: caution
+          moderate: unsafe
+          severe: unsafe
+      chlorophyll_a:
+        low: safe
+        moderate: caution
+        high: unsafe
+        very_high: unsafe
+      turbidity:
+        low: safe
+        moderate: safe
+        high: caution
+        very_high: unsafe
+      water_clarity:
+        clear: safe
+        moderate: safe
+        turbid: caution
+        opaque: unsafe
+    messages:
+      safe: "Looking good for a swim today."
+      caution: "Probably fine but worth checking local advisories before you get in."
+      unsafe: "We'd give this one a miss today, conditions aren't great for swimming right now."
+
+  fishing:
+    description: "Recreational and commercial fishing including shellfish"
+    activity:
+      description: "Safety of the fishing activity itself"
+      indicators:
+        cyanobacteria_risk:
+          low: safe
+          moderate: safe
+          high: caution
+          very_high: unsafe
+        algae_bloom:
+          severity:
+            none: safe
+            minor: safe
+            moderate: caution
+            severe: unsafe
+        turbidity:
+          low: safe
+          moderate: safe
+          high: safe
+          very_high: caution
+      messages:
+        safe: "All good to fish today."
+        caution: "Fishing is okay but keep an eye on conditions, things could change."
+        unsafe: "We'd hold off on fishing today, conditions are not ideal right now."
+    consumption:
+      description: "Safety of consuming the catch including fish and shellfish"
+      indicators:
+        cyanobacteria_risk:
+          low: safe
+          moderate: caution
+          high: unsafe
+          very_high: unsafe
+        algae_bloom:
+          severity:
+            none: safe
+            minor: caution
+            moderate: unsafe
+            severe: unsafe
+        chlorophyll_a:
+          low: safe
+          moderate: caution
+          high: unsafe
+          very_high: unsafe
+      messages:
+        safe: "Catch looks safe to eat today."
+        caution: "Take care with any catch today, consider checking local advisories before eating."
+        unsafe: "We'd avoid eating anything caught here today, water conditions are a concern."
+
+  boating:
+    description: "All watercraft including kayaks, recreational boats and vessels"
+    safety:
+      description: "Safety of being on the water with potential splash and skin contact"
+      indicators:
+        cyanobacteria_risk:
+          low: safe
+          moderate: safe
+          high: caution
+          very_high: unsafe
+        algae_bloom:
+          severity:
+            none: safe
+            minor: safe
+            moderate: caution
+            severe: unsafe
+        turbidity:
+          low: safe
+          moderate: safe
+          high: safe
+          very_high: safe
+      messages:
+        safe: "Good conditions out on the water today."
+        caution: "Okay to head out but minimise skin contact with the water today."
+        unsafe: "We'd stay off the water today, conditions pose a risk even with limited contact."
+    biosecurity:
+      description: "Risk of spreading contaminants or invasive species to other waterways"
+      indicators:
+        algae_bloom:
+          severity:
+            none: false
+            minor: true
+            moderate: true
+            severe: true
+        cyanobacteria_risk:
+          low: false
+          moderate: true
+          high: true
+          very_high: true
+      messages:
+        true: "Please clean, drain and dry your vessel before entering any other waterways."
+        false: "No biosecurity concerns detected today."
+
+  irrigation:
+    description: "Use of water for crop and garden irrigation"
+    indicators:
+      cyanobacteria_risk:
+        low: safe
+        moderate: caution
+        high: unsafe
+        very_high: unsafe
+      algae_bloom:
+        severity:
+          none: safe
+          minor: caution
+          moderate: unsafe
+          severe: unsafe
+      chlorophyll_a:
+        low: safe
+        moderate: safe
+        high: caution
+        very_high: unsafe
+      turbidity:
+        low: safe
+        moderate: safe
+        high: safe
+        very_high: caution
+    messages:
+      safe: "Water looks suitable for irrigation today."
+      caution: "Use with care today, consider avoiding use on edible crops until conditions improve."
+      unsafe: "We'd avoid using this water for irrigation today, particularly on food crops."
+
+  animal_watering:
+    description: "Livestock and domestic animal access to water"
+    indicators:
+      cyanobacteria_risk:
+        low: safe
+        moderate: caution
+        high: unsafe
+        very_high: unsafe
+      algae_bloom:
+        severity:
+          none: safe
+          minor: caution
+          moderate: unsafe
+          severe: unsafe
+      chlorophyll_a:
+        low: safe
+        moderate: safe
+        high: caution
+        very_high: unsafe
+      turbidity:
+        low: safe
+        moderate: safe
+        high: caution
+        very_high: unsafe
+    messages:
+      safe: "Water looks fine for animal access today."
+      caution: "Take care with animal access today, monitor for any unusual behaviour after drinking."
+      unsafe: "Keep animals away from this water today, conditions could be harmful to livestock."

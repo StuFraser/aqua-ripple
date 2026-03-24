@@ -23,6 +23,6 @@ public class AnalysisController : ControllerBase
     public async Task<IActionResult> Analyse([FromBody] LocationRequest request)
     {
         var result = await _analysisService.AnalyseAsync(request.Latitude, request.Longitude);
-        return Ok(result);
+        return result;
     }
 }
