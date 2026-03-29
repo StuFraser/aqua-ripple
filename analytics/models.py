@@ -24,7 +24,7 @@ class OverallQuality(str, Enum):
     GOOD = "good"
     FAIR = "fair"
     POOR = "poor"
-    CRITICAL = "critical"
+    VERY_POOR = "very_poor" 
 
 
 class ChlorophyllIndicator(BaseModel):
