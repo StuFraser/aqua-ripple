@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 're
 import L from 'leaflet';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+import Toast, { type ToastState } from '../layout/toast';
 
 // ── Icons (module-level constants — created once, never recreated) ──────────
 
@@ -57,9 +58,10 @@ async function warmCache(lat: number, lng: number): Promise<void> {
 interface MapEventHandlerProps {
     onMapClick: (lat: number, lng: number) => void;
     lastWarmedLocationRef: React.MutableRefObject<[number, number] | null>;
+    onWarm: (lat: number, lng: number) => void;
 }
 
-function MapEventHandler({ onMapClick, lastWarmedLocationRef }: MapEventHandlerProps) {
+function MapEventHandler({ onMapClick, lastWarmedLocationRef, onWarm }: MapEventHandlerProps) {
     useMapEvents({
         click: (e) => {
             onMapClick(e.latlng.lat, e.latlng.lng);
@@ -72,7 +74,7 @@ function MapEventHandler({ onMapClick, lastWarmedLocationRef }: MapEventHandlerP
 
             if (shouldWarm) {
                 lastWarmedLocationRef.current = [lat, lng];
-                warmCache(lat, lng);
+                onWarm(lat, lng);
             }
         },
     });
@@ -128,12 +130,24 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(({ onLocationSelect }, r
     const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
     const [clickedMarker, setClickedMarker] = useState<[number, number] | undefined>(undefined);
     const [locationError, setLocationError] = useState<GeolocationPositionError | null>(null);
+    const [warmState, setWarmState] = useState<ToastState>("hidden");
     const lastWarmedLocationRef = useRef<[number, number] | null>(null);
     const flyToFnRef = useRef<((lat: number, lng: number) => void) | null>(null);
+    const warmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useImperativeHandle(ref, () => ({
         flyTo: (lat, lng) => flyToFnRef.current?.(lat, lng),
     }));
+
+    // Trigger a warming cycle and show the toast
+    const triggerWarm = async (lat: number, lng: number) => {
+        if (warmTimerRef.current) clearTimeout(warmTimerRef.current);
+        setWarmState("warming");
+        await warmCache(lat, lng);
+        setWarmState("done");
+        // Reset state after toast has had time to hide itself
+        warmTimerRef.current = setTimeout(() => setWarmState("hidden"), 4000);
+    };
 
     useEffect(() => {
         navigator.geolocation.getCurrentPosition(
@@ -141,15 +155,18 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(({ onLocationSelect }, r
                 const loc: [number, number] = [position.coords.latitude, position.coords.longitude];
                 setUserLocation(loc);
                 lastWarmedLocationRef.current = loc;
-                warmCache(loc[0], loc[1]);
+                triggerWarm(loc[0], loc[1]);
             },
             (error) => {
                 setLocationError(error);
                 setUserLocation(DEFAULT_LOCATION);
                 lastWarmedLocationRef.current = DEFAULT_LOCATION;
-                warmCache(DEFAULT_LOCATION[0], DEFAULT_LOCATION[1]);
+                triggerWarm(DEFAULT_LOCATION[0], DEFAULT_LOCATION[1]);
             }
         );
+        return () => {
+            if (warmTimerRef.current) clearTimeout(warmTimerRef.current);
+        };
     }, []);
 
     const handleMapClick = (lat: number, lng: number) => {
@@ -174,6 +191,9 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(({ onLocationSelect }, r
                     <span>{getLocationErrorMessage(locationError)}</span>
                 </div>
             )}
+
+            <Toast state={warmState} />
+
             <MapContainer
                 center={userLocation}
                 zoom={13}
@@ -187,6 +207,7 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(({ onLocationSelect }, r
                 <MapEventHandler
                     onMapClick={handleMapClick}
                     lastWarmedLocationRef={lastWarmedLocationRef}
+                    onWarm={triggerWarm}
                 />
                 <TileLayer
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

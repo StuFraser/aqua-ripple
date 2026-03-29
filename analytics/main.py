@@ -20,11 +20,15 @@ class Coordinates(BaseModel):
     lon: float
 
 def get_image_package(coords: Coordinates, settings: AquaSettings) -> Dict:
+
+    print("creating Image Package")
+
     bbox = [
         coords.lon - settings.box_size, coords.lat - settings.box_size,
         coords.lon + settings.box_size, coords.lat + settings.box_size,
     ]
     bbox_str = ",".join(map(str, bbox))
+    print("BBox: ", {bbox_str})
 
     catalog = pystac_client.Client.open(settings.satillite_service)
     search = catalog.search(

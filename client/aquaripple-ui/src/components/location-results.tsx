@@ -1,73 +1,146 @@
-import React from "react";
+import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import Badge from "./primitives/badge";
+import type { WaterAnalysisResponse, SafetyStatus, OverallQuality } from "../types/Wateranalysisresponse";
+import AnalysisModal from "./analysis-modal";
 
-interface WaterQualityResponse {
-    ndwi: number | null;
-    chlorophyllA: number | null;
-    qualityLabel: string | null;
-    message: string | null;
-    capturedAt: string | null;
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
+
+// ── Fetch ────────────────────────────────────────────────────────────────────
+
+const fetchAnalysis = async (lat: number, lng: number): Promise<WaterAnalysisResponse> => {
+    const response = await fetch(`${API_BASE}/api/analysis/analyse`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ latitude: lat, longitude: lng }),
+    });
+    if (!response.ok) throw new Error('Analysis failed');
+    return response.json();
+};
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function worstStatus(data: WaterAnalysisResponse): SafetyStatus {
+    const statuses: SafetyStatus[] = [
+        data.activity_safety.swimming.status,
+        data.activity_safety.fishing.activity.status,
+        data.activity_safety.fishing.consumption.status,
+        data.activity_safety.boating.safety.status,
+        data.activity_safety.irrigation.status,
+        data.activity_safety.animal_watering.status,
+    ];
+    if (statuses.includes("unsafe"))  return "unsafe";
+    if (statuses.includes("caution")) return "caution";
+    return "safe";
 }
+
+function warningActivities(data: WaterAnalysisResponse): string[] {
+    const warnings: string[] = [];
+    if (data.activity_safety.swimming.status !== "safe")             warnings.push("Swimming");
+    if (data.activity_safety.fishing.activity.status !== "safe")     warnings.push("Fishing");
+    if (data.activity_safety.fishing.consumption.status !== "safe")  warnings.push("Eating catch");
+    if (data.activity_safety.boating.safety.status !== "safe")       warnings.push("Boating");
+    if (data.activity_safety.irrigation.status !== "safe")           warnings.push("Irrigation");
+    if (data.activity_safety.animal_watering.status !== "safe")      warnings.push("Animal watering");
+    return warnings;
+}
+
+const qualityConfig: Record<OverallQuality, { label: string; colour: string; bg: string; border: string }> = {
+    excellent: { label: "Excellent",  colour: "text-emerald-700", bg: "bg-emerald-50",  border: "border-emerald-200" },
+    good:      { label: "Good",       colour: "text-teal-700",    bg: "bg-teal-50",     border: "border-teal-200"    },
+    fair:      { label: "Fair",       colour: "text-amber-700",   bg: "bg-amber-50",    border: "border-amber-200"   },
+    poor:      { label: "Poor",       colour: "text-orange-700",  bg: "bg-orange-50",   border: "border-orange-200"  },
+    very_poor: { label: "Very Poor",  colour: "text-red-700",     bg: "bg-red-50",      border: "border-red-200"     },
+};
+
+const statusConfig: Record<SafetyStatus, { icon: string; label: string; colour: string; bg: string; border: string }> = {
+    safe:    { icon: "✓", label: "All activities safe",    colour: "text-emerald-700", bg: "bg-emerald-50",  border: "border-emerald-200" },
+    caution: { icon: "⚠", label: "Some caution advised",  colour: "text-amber-700",   bg: "bg-amber-50",    border: "border-amber-200"   },
+    unsafe:  { icon: "✕", label: "Some activities unsafe", colour: "text-red-700",     bg: "bg-red-50",      border: "border-red-200"     },
+};
+
+// ── Result card ───────────────────────────────────────────────────────────────
+
+interface AnalysisCardProps {
+    data: WaterAnalysisResponse;
+    waterName: string | null;
+    onClick: () => void;
+}
+
+const AnalysisCard: React.FC<AnalysisCardProps> = ({ data, waterName, onClick }) => {
+    const worst = worstStatus(data);
+    const warnings = warningActivities(data);
+    const sc = statusConfig[worst];
+    const qc = qualityConfig[data.overall_quality];
+    const satelliteDate = new Date(data.datetime).toLocaleDateString("en-NZ", {
+        day: "numeric", month: "short", year: "numeric"
+    });
+
+    return (
+        <button
+            onClick={onClick}
+            className="w-full text-left rounded-xl border border-gray-100 bg-white hover:border-aqua-brand/40 hover:shadow-md transition-all duration-200 overflow-hidden group"
+        >
+            {/* Card header bar */}
+            <div className={`px-4 py-2.5 flex items-center justify-between gap-2 border-b ${qc.bg} ${qc.border} border-b`}>
+                <span className={`text-xs font-bold uppercase tracking-wider ${qc.colour}`}>
+                    {qc.label} quality
+                </span>
+                <span className="text-xs text-gray-400">
+                    {satelliteDate}
+                </span>
+            </div>
+
+            {/* Card body */}
+            <div className="px-4 py-3 flex flex-col gap-2.5">
+
+                {/* Activity safety summary */}
+                <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${sc.bg} ${sc.border}`}>
+                    <span className={`text-sm font-bold ${sc.colour}`}>{sc.icon}</span>
+                    <span className={`text-xs font-semibold ${sc.colour}`}>{sc.label}</span>
+                </div>
+
+                {/* Warning list when not all safe */}
+                {warnings.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                        {warnings.map(w => (
+                            <span key={w} className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-medium">
+                                {w}
+                            </span>
+                        ))}
+                    </div>
+                )}
+
+                {/* Quick indicator glance */}
+                <div className="flex items-center justify-between text-xs text-gray-400 pt-0.5">
+                    <span>Tap for full results</span>
+                    <svg className="h-3.5 w-3.5 text-aqua-brand/60 group-hover:text-aqua-brand transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                </div>
+            </div>
+        </button>
+    );
+};
+
+// ── Main component ────────────────────────────────────────────────────────────
 
 interface LocationResultsProps {
     clickedLocation: [number, number] | undefined;
     isWaterBody: boolean | undefined;
+    waterName: string | null | undefined;
 }
 
-const fetchWaterQuality = async (lat: number, lng: number): Promise<WaterQualityResponse> => {
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/getwet/check`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ latitude: lat, longitude: lng })
-    });
-    if (!response.ok) throw new Error('Water quality lookup failed');
-    return response.json();
-};
-
-function ndwiLabel(ndwi: number): { label: string; variant: "water" | "warning" | "land" } {
-    if (ndwi > 0.3)  return { label: "Clear water",       variant: "water" };
-    if (ndwi > 0)    return { label: "Moderate water",    variant: "info" as any };
-    if (ndwi > -0.1) return { label: "Turbid / shallow",  variant: "warning" };
-    return               { label: "Non-water surface",   variant: "land" };
-}
-
-function chlorophyllLabel(chl: number): { label: string; variant: "water" | "warning" | "land" } {
-    if (chl < 2)   return { label: "Low (healthy)",     variant: "water" };
-    if (chl < 10)  return { label: "Moderate",          variant: "info" as any };
-    if (chl < 50)  return { label: "Elevated (algae?)", variant: "warning" };
-    return              { label: "High (bloom risk)",  variant: "land" };
-}
-
-interface MetricRowProps {
-    label: string;
-    value: string;
-    subLabel?: string;
-    variant?: "water" | "warning" | "land" | "info";
-}
-
-const MetricRow: React.FC<MetricRowProps> = ({ label, value, subLabel, variant = "info" }) => (
-    <div className="flex items-center justify-between py-2.5 border-b border-gray-100 last:border-0">
-        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{label}</span>
-        <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-aqua-dark">{value}</span>
-            {subLabel && <Badge variant={variant}>{subLabel}</Badge>}
-        </div>
-    </div>
-);
-
-const LocationResults: React.FC<LocationResultsProps> = ({ clickedLocation, isWaterBody }) => {
+const LocationResults: React.FC<LocationResultsProps> = ({ clickedLocation, isWaterBody, waterName }) => {
+    const [modalOpen, setModalOpen] = useState(false);
 
     const { data, isFetching, isError } = useQuery({
-        queryKey: ['water-quality', clickedLocation],
-        queryFn: () => fetchWaterQuality(clickedLocation![0], clickedLocation![1]),
+        queryKey: ['analysis', clickedLocation],
+        queryFn: () => fetchAnalysis(clickedLocation![0], clickedLocation![1]),
         enabled: !!clickedLocation && isWaterBody === true,
     });
 
-    // No pin dropped yet
     if (!clickedLocation) return null;
 
-    // Pin on land — no water quality data to show
     if (isWaterBody === false) {
         return (
             <div className="py-4 text-center">
@@ -76,64 +149,52 @@ const LocationResults: React.FC<LocationResultsProps> = ({ clickedLocation, isWa
         );
     }
 
-    // Still waiting on the isWaterBody check
     if (isWaterBody === undefined) return null;
 
     if (isFetching) {
         return (
-            <div className="flex items-center gap-2 py-4 text-sm text-aqua-dark">
-                <svg className="animate-spin h-4 w-4 text-aqua-brand" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                </svg>
-                Fetching water quality data...
+            <div className="flex flex-col gap-2 py-3">
+                <div className="flex items-center gap-2 text-sm text-aqua-dark">
+                    <svg className="animate-spin h-4 w-4 text-aqua-brand shrink-0" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                    Analysing satellite imagery…
+                </div>
+                <p className="text-xs text-gray-400 leading-relaxed">
+                    Fetching the clearest recent pass and running AI analysis. This can take up to 30 seconds.
+                </p>
             </div>
         );
     }
 
     if (isError) {
-        return <Badge variant="warning">⚠ Water quality data unavailable</Badge>;
+        return (
+            <div className="flex items-center gap-2 py-2 px-3 rounded-lg bg-red-50 border border-red-200">
+                <span className="text-red-500 text-sm">⚠</span>
+                <p className="text-xs text-red-700">Analysis unavailable for this location.</p>
+            </div>
+        );
     }
 
-    const ndwi = data?.ndwi;
-    const chl  = data?.chlorophyllA;
+    if (!data) return null;
 
     return (
-        <div className="flex flex-col gap-1">
-            {data?.qualityLabel && (
-                <div className="mb-2">
-                    <Badge variant="water">{data.qualityLabel}</Badge>
-                </div>
-            )}
+        <>
+            <AnalysisCard
+                data={data}
+                waterName={waterName ?? null}
+                onClick={() => setModalOpen(true)}
+            />
 
-            {ndwi !== null && ndwi !== undefined && (
-                <MetricRow
-                    label="NDWI"
-                    value={ndwi.toFixed(3)}
-                    subLabel={ndwiLabel(ndwi).label}
-                    variant={ndwiLabel(ndwi).variant}
+            {modalOpen && (
+                <AnalysisModal
+                    data={data}
+                    waterName={waterName ?? null}
+                    onClose={() => setModalOpen(false)}
                 />
             )}
-
-            {chl !== null && chl !== undefined && (
-                <MetricRow
-                    label="Chlorophyll-a"
-                    value={`${chl.toFixed(1)} µg/L`}
-                    subLabel={chlorophyllLabel(chl).label}
-                    variant={chlorophyllLabel(chl).variant}
-                />
-            )}
-
-            {data?.message && (
-                <p className="text-xs text-gray-400 mt-2 leading-relaxed">{data.message}</p>
-            )}
-
-            {data?.capturedAt && (
-                <p className="text-xs text-gray-300 mt-1">
-                    Satellite pass: {new Date(data.capturedAt).toLocaleDateString()}
-                </p>
-            )}
-        </div>
+        </>
     );
 };
 

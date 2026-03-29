@@ -106,40 +106,65 @@ def build_activity_safety(indicators: dict) -> dict:
 
 
 def derive_overall_quality(indicators: dict) -> str:
-    """Derive overall quality label from indicators rather than relying on Gemini."""
-    scores = []
+    """Derive overall quality label from indicators rather than relying on Gemini.
 
-    level_score = {"low": 100, "moderate": 70, "high": 40, "very_high": 10}
-    clarity_score = {"clear": 100, "moderate": 70, "turbid": 40, "opaque": 10}
-    severity_score = {"none": 100, "minor": 70, "moderate": 40, "severe": 10}
+    Uses a weighted average across all indicators, with cyanobacteria and algae bloom
+    carrying extra weight as the health-critical indicators. A worst-case floor then
+    prevents a single clean indicator from masking a serious concern.
+    """
+    level_score    = {"low": 100, "moderate": 60, "high": 30, "very_high": 5}
+    clarity_score  = {"clear": 100, "moderate": 60, "turbid": 30, "opaque": 5}
+    severity_score = {"none": 100, "minor": 60, "moderate": 30, "severe": 5}
+
+    # (score, weight) pairs — health-critical indicators weighted 2x
+    weighted = []
 
     if chl := indicators.get("chlorophyll_a"):
-        scores.append(level_score.get(chl.get("level"), 50))
+        weighted.append((level_score.get(chl.get("level"), 50), 1.0))
 
     if turb := indicators.get("turbidity"):
-        scores.append(level_score.get(turb.get("level"), 50))
+        weighted.append((level_score.get(turb.get("level"), 50), 1.0))
 
     if bloom := indicators.get("algae_bloom"):
-        scores.append(severity_score.get(bloom.get("severity"), 50))
+        weighted.append((severity_score.get(bloom.get("severity"), 50), 2.0))
 
     if clarity := indicators.get("water_clarity"):
-        scores.append(clarity_score.get(clarity.get("level"), 50))
+        weighted.append((clarity_score.get(clarity.get("level"), 50), 1.0))
 
     if cyano := indicators.get("cyanobacteria_risk"):
-        scores.append(level_score.get(cyano.get("level"), 50))
+        weighted.append((level_score.get(cyano.get("level"), 50), 2.0))
 
-    if not scores:
+    if not weighted:
         return "unknown"
 
-    average = sum(scores) / len(scores)
+    total_score  = sum(s * w for s, w in weighted)
+    total_weight = sum(w for _, w in weighted)
+    average = total_score / total_weight
+
+    # Worst-case floor: the single lowest score caps the ceiling
+    # so a serious indicator cannot be washed out by clean ones
+    worst = min(s for s, _ in weighted)
+    if worst >= 100:
+        ceiling = "excellent"
+    elif worst >= 60:
+        ceiling = "good"
+    elif worst >= 30:
+        ceiling = "fair"
+    else:
+        ceiling = "poor"
+
+    quality_order = ["excellent", "good", "fair", "poor", "very_poor"]
 
     if average >= 90:
-        return "excellent"
-    elif average >= 70:
-        return "good"
+        derived = "excellent"
+    elif average >= 72:
+        derived = "good"
     elif average >= 50:
-        return "fair"
-    elif average >= 30:
-        return "poor"
+        derived = "fair"
+    elif average >= 25:
+        derived = "poor"
     else:
-        return "critical"
+        derived = "very_poor"
+
+    # Return whichever is worse: derived average or worst-case ceiling
+    return derived if quality_order.index(derived) >= quality_order.index(ceiling) else ceiling

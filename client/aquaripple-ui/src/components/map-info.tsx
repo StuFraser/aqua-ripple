@@ -52,6 +52,7 @@ const MapInfo: React.FC<MapInfoProps> = ({ clickedLocation }) => {
                 <LocationResults
                     clickedLocation={clickedLocation}
                     isWaterBody={locationData?.is_water}
+                    waterName={locationData?.name}
                 />
             </div>
         </div>
