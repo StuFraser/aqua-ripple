@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useState } from "react";
+import { apiClient } from "../api/client";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 const MIN_QUERY_LEN = 2;
 
 interface GeoSearchResult {
@@ -16,7 +16,7 @@ interface MapSearchProps {
     onResultSelect: (lat: number, lng: number) => void;
 }
 
-// ── Icons ───────────────────────────────────────────────────────────────────
+// ── Icons ────────────────────────────────────────────────────────────
 
 function SearchIcon({ spinning }: { spinning: boolean }) {
     if (spinning) {
@@ -42,7 +42,7 @@ function ClearIcon() {
     );
 }
 
-// ── Main component ───────────────────────────────────────────────────────────
+// ── Main component ──────────────────────────────────────────────────────────
 
 const MapSearch: React.FC<MapSearchProps> = ({ onResultSelect }) => {
     const [query, setQuery] = useState('');
@@ -78,7 +78,7 @@ const MapSearch: React.FC<MapSearchProps> = ({ onResultSelect }) => {
         }
     }, [activeIndex]);
 
-    // ── Fetch ──────────────────────────────────────────────────────────────
+    // ── Fetch using apiClient ──────────────────────────────────────────────
 
     const fetchResults = useCallback(async (q: string) => {
         if (abortRef.current) abortRef.current.abort();
@@ -87,16 +87,12 @@ const MapSearch: React.FC<MapSearchProps> = ({ onResultSelect }) => {
         setIsLoading(true);
         setHasSearched(false);
         try {
-            const res = await fetch(
-                `${API_BASE}/api/geonames/search?q=${encodeURIComponent(q)}&maxRows=8`,
-                { signal: abortRef.current.signal }
+            const data: GeoSearchResult[] = await apiClient.get(
+                `/api/geonames/search?q=${encodeURIComponent(q)}&maxRows=8`
             );
-            if (!res.ok) throw new Error('Search failed');
-            const data: GeoSearchResult[] = await res.json();
             setHasSearched(true);
 
             if (data.length === 1) {
-                // Single result — fly straight there
                 handleSelect(data[0]);
             } else {
                 setResults(data);
@@ -114,7 +110,7 @@ const MapSearch: React.FC<MapSearchProps> = ({ onResultSelect }) => {
         }
     }, []);
 
-    // ── Handlers ───────────────────────────────────────────────────────────
+    // ── Handlers ─────────────────────────────────────────────────────────────
 
     const handleSearch = () => {
         const trimmed = query.trim();
@@ -135,10 +131,8 @@ const MapSearch: React.FC<MapSearchProps> = ({ onResultSelect }) => {
         if (e.key === 'Enter') {
             e.preventDefault();
             if (isOpen && activeIndex >= 0 && results[activeIndex]) {
-                // Enter on a highlighted dropdown item
                 handleSelect(results[activeIndex]);
             } else {
-                // Enter in the input field — trigger search
                 handleSearch();
             }
             return;
@@ -170,7 +164,7 @@ const MapSearch: React.FC<MapSearchProps> = ({ onResultSelect }) => {
         inputRef.current?.focus();
     };
 
-    // ── Render ─────────────────────────────────────────────────────────────
+    // ── Render ──────────────────────────────────────────────────────────────
 
     return (
         <div ref={containerRef} className="relative flex items-center gap-2 flex-1">
@@ -187,10 +181,6 @@ const MapSearch: React.FC<MapSearchProps> = ({ onResultSelect }) => {
                     onKeyDown={handleKeyDown}
                     placeholder="Search for a waterway or location..."
                     autoComplete="off"
-                    role="combobox"
-                    aria-expanded={isOpen}
-                    aria-haspopup="listbox"
-                    aria-autocomplete="list"
                     className="w-full pl-4 pr-8 py-2 text-sm rounded-lg border-2 border-gray-200 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:border-aqua-brand transition-colors"
                 />
                 {query && (
@@ -221,14 +211,11 @@ const MapSearch: React.FC<MapSearchProps> = ({ onResultSelect }) => {
             {isOpen && results.length > 0 && (
                 <ul
                     ref={listRef}
-                    role="listbox"
                     className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-[1000] max-h-72 overflow-y-auto"
                 >
                     {results.map((result, i) => (
                         <li
                             key={`${result.latitude}-${result.longitude}-${i}`}
-                            role="option"
-                            aria-selected={i === activeIndex}
                             onMouseDown={() => handleSelect(result)}
                             onMouseEnter={() => setActiveIndex(i)}
                             className="flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors border-b border-gray-50 last:border-0"

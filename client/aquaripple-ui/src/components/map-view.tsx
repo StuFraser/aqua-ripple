@@ -4,6 +4,7 @@ import L from 'leaflet';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 import Toast, { type ToastState } from '../layout/toast';
+import { apiClient } from '../api/client';
 
 // ── Icons (module-level constants — created once, never recreated) ──────────
 
@@ -28,7 +29,6 @@ L.Marker.prototype.options.icon = standardPin;
 // ── Cache warming ───────────────────────────────────────────────────────────
 
 const WARM_THRESHOLD_KM = 5;
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 
 function distanceKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
     const R = 6371;
@@ -41,12 +41,12 @@ function distanceKm(lat1: number, lng1: number, lat2: number, lng2: number): num
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// Updated to use apiClient with API key automatically included
 async function warmCache(lat: number, lng: number): Promise<void> {
     try {
-        await fetch(`${API_BASE}/api/getwet/warm`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ latitude: lat, longitude: lng }),
+        await apiClient.post('/api/getwet/warm', {
+            latitude: lat,
+            longitude: lng,
         });
     } catch (err) {
         console.warn('[AquaRipple] Cache warm failed:', err);

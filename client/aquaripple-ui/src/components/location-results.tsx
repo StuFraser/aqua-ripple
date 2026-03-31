@@ -2,22 +2,18 @@ import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { WaterAnalysisResponse, SafetyStatus, OverallQuality } from "../types/Wateranalysisresponse";
 import AnalysisModal from "./analysis-modal";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
+import { apiClient } from "../api/client";
 
 // ── Fetch ────────────────────────────────────────────────────────────────────
 
 const fetchAnalysis = async (lat: number, lng: number): Promise<WaterAnalysisResponse> => {
-    const response = await fetch(`${API_BASE}/api/analysis/analyse`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ latitude: lat, longitude: lng }),
+    return apiClient.post<WaterAnalysisResponse>('/api/analysis/analyse', {
+        latitude: lat,
+        longitude: lng,
     });
-    if (!response.ok) throw new Error('Analysis failed');
-    return response.json();
 };
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function worstStatus(data: WaterAnalysisResponse): SafetyStatus {
     const statuses: SafetyStatus[] = [
@@ -58,7 +54,7 @@ const statusConfig: Record<SafetyStatus, { icon: string; label: string; colour: 
     unsafe:  { icon: "✕", label: "Some activities unsafe", colour: "text-red-700",     bg: "bg-red-50",      border: "border-red-200"     },
 };
 
-// ── Result card ───────────────────────────────────────────────────────────────
+// ── Result card ────────────────────────────────────────────────────────────────
 
 interface AnalysisCardProps {
     data: WaterAnalysisResponse;
