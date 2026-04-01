@@ -5,9 +5,9 @@ import type { WaterAnalysisResponse, SafetyStatus, IndicatorLevel, ClarityLevel,
 
 function statusColour(status: SafetyStatus) {
     return {
-        safe:    { bg: "bg-emerald-50",  text: "text-emerald-700", border: "border-emerald-200", dot: "bg-emerald-500" },
-        caution: { bg: "bg-amber-50",    text: "text-amber-700",   border: "border-amber-200",   dot: "bg-amber-400"   },
-        unsafe:  { bg: "bg-red-50",      text: "text-red-700",     border: "border-red-200",     dot: "bg-red-500"     },
+        safe: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200", dot: "bg-emerald-500" },
+        caution: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200", dot: "bg-amber-400" },
+        unsafe: { bg: "bg-red-50", text: "text-red-700", border: "border-red-200", dot: "bg-red-500" },
     }[status];
 }
 
@@ -24,10 +24,10 @@ function levelColour(level: IndicatorLevel | ClarityLevel) {
 function qualityColour(q: OverallQuality) {
     return {
         excellent: { text: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-200" },
-        good:      { text: "text-teal-700",    bg: "bg-teal-50",    border: "border-teal-200"    },
-        fair:      { text: "text-amber-700",   bg: "bg-amber-50",   border: "border-amber-200"   },
-        poor:      { text: "text-orange-700",  bg: "bg-orange-50",  border: "border-orange-200"  },
-        very_poor: { text: "text-red-700",     bg: "bg-red-50",     border: "border-red-200"     },
+        good: { text: "text-teal-700", bg: "bg-teal-50", border: "border-teal-200" },
+        fair: { text: "text-amber-700", bg: "bg-amber-50", border: "border-amber-200" },
+        poor: { text: "text-orange-700", bg: "bg-orange-50", border: "border-orange-200" },
+        very_poor: { text: "text-red-700", bg: "bg-red-50", border: "border-red-200" },
     }[q];
 }
 
@@ -48,10 +48,10 @@ function humanLabel(key: string): string {
 
 function bloomDisplay(severity: BloomSeverity): { label: string; colour: string } {
     return {
-        none:     { label: "None",     colour: "text-emerald-600" },
-        minor:    { label: "Minor",    colour: "text-amber-600"   },
-        moderate: { label: "Moderate", colour: "text-orange-600"  },
-        severe:   { label: "Severe",   colour: "text-red-600"     },
+        none: { label: "None", colour: "text-emerald-600" },
+        minor: { label: "Minor", colour: "text-amber-600" },
+        moderate: { label: "Moderate", colour: "text-orange-600" },
+        severe: { label: "Severe", colour: "text-red-600" },
     }[severity];
 }
 
@@ -97,6 +97,39 @@ const IndicatorRow: React.FC<{ icon: string; label: string; value: string; value
         </div>
     </div>
 );
+
+const HistoryRow: React.FC<{ entry: WaterAnalysisResponse }> = ({ entry }) => {
+    const qc = qualityColour(entry.overall_quality);
+    const date = new Date(entry.datetime).toLocaleDateString("en-NZ", {
+        day: "numeric", month: "short", year: "numeric"
+    });
+
+    // Find the worst indicator to surface as a one-liner
+    const worstIndicator = (() => {
+        const { chlorophyll_a, turbidity, cyanobacteria_risk, algae_bloom } = entry.indicators;
+        if (cyanobacteria_risk.level === "very_high" || cyanobacteria_risk.level === "high")
+            return `Cyanobacteria ${cyanobacteria_risk.level.replace("_", " ")}`;
+        if (algae_bloom.detected && algae_bloom.severity !== "none")
+            return `Algae bloom ${algae_bloom.severity}`;
+        if (chlorophyll_a.level === "very_high" || chlorophyll_a.level === "high")
+            return `Chlorophyll-a ${chlorophyll_a.level.replace("_", " ")}`;
+        if (turbidity.level === "very_high" || turbidity.level === "high")
+            return `Turbidity ${turbidity.level.replace("_", " ")}`;
+        return "No significant concerns";
+    })();
+
+    return (
+        <div className="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0">
+            <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-aqua-dark">{date}</p>
+                <p className="text-xs text-gray-400 truncate">{worstIndicator}</p>
+            </div>
+            <div className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-semibold ${qc.bg} ${qc.text} ${qc.border}`}>
+                <span className="capitalize">{entry.overall_quality.replace("_", " ")}</span>
+            </div>
+        </div>
+    );
+};
 
 // ── Main modal ───────────────────────────────────────────────────────────────
 

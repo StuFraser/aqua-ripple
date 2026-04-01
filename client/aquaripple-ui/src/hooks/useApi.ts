@@ -1,5 +1,6 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
+import type LocationLookupResponse from '../types/LocationLookupResponse'
 
 // Analysis endpoint
 export const useAnalysis = (latitude: number, longitude: number) => {
@@ -22,16 +23,16 @@ export const useWarmCache = () => {
   });
 };
 
-// GetWet check (NEW)
+
 export const useCheckWet = (latitude: number, longitude: number) => {
   return useQuery({
     queryKey: ['getwet-check', latitude, longitude],
     queryFn: () =>
-      apiClient.post('/api/getwet/check', {
+      apiClient.post<LocationLookupResponse>('/api/getwet/check', {
         latitude,
         longitude,
       }),
-    enabled: latitude !== undefined && longitude !== undefined,
+    enabled: !!latitude && !!longitude,
   });
 };
 

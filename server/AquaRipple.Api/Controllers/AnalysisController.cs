@@ -20,9 +20,20 @@ public class AnalysisController : ControllerBase
     /// and runs Gemini AI analysis for the given coordinates.
     /// </summary>
     [HttpPost("analyse")]
-    public async Task<IActionResult> Analyse([FromBody] LocationRequest request)
+    public async Task<ActionResult<LocationAnalysisResponse>> Analyse([FromBody] LocationRequest request)
     {
-        var result = await _analysisService.AnalyseAsync(request.Latitude, request.Longitude);
-        return result;
+        try
+        {
+            var result = await _analysisService.AnalyseAsync(
+                request.Latitude,
+                request.Longitude,
+                request.WaterBodyName);
+
+            return Ok(result);
+        }
+        catch (HttpRequestException ex)
+        {
+            return StatusCode(502, new { detail = $"Analytics service error: {ex.Message}" });
+        }
     }
 }

@@ -37,8 +37,8 @@ const MapInfo: React.FC<MapInfoProps> = ({ clickedLocation }) => {
                 <h2 className="text-sm font-semibold text-aqua-dark uppercase tracking-wider mb-3">Water Quality</h2>
                 <LocationResults
                     clickedLocation={clickedLocation}
-                    isWaterBody={(locationData as any)?.is_water}
-                    waterName={(locationData as any)?.name}
+                    isWaterBody={locationData?.is_water}
+                    waterName={locationData?.name}
                 />
             </div>
         </div>

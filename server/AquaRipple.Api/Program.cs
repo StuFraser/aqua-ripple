@@ -34,6 +34,7 @@ builder.Services.AddScoped(sp =>
 builder.Services.AddScoped<GetWetService>();
 builder.Services.AddScoped<GeoNamesService>();
 builder.Services.AddScoped<AnalysisService>();
+builder.Services.AddScoped<AnalysisHistoryService>();
 
 
 builder.Services.AddHttpClient("Analytics", client =>

@@ -1,3 +1,8 @@
 namespace AquaRipple.Api.Models;
 
-public record LocationRequest(double Latitude, double Longitude);
+public class LocationRequest
+{
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+    public string? WaterBodyName { get; set; }
+}
