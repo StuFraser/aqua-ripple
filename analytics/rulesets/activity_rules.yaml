@@ -28,12 +28,12 @@ activities:
       turbidity:
         low: safe
         moderate: safe
-        high: caution
+        high: unsafe
         very_high: unsafe
       water_clarity:
         clear: safe
         moderate: safe
-        turbid: caution
+        turbid: unsafe
         opaque: unsafe
     messages:
       safe: "Looking good for a swim today."

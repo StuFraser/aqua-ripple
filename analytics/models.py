@@ -93,13 +93,3 @@ class WaterQualityResult(BaseModel):
     indicators: WaterQualityIndicators
     activity_safety: ActivitySafety
     overall_quality: OverallQuality
-
-
-class LocationResult(BaseModel):
-    is_water: bool
-    name: str | None
-    water_type: str | None
-    description: str | None
-    message: str | None
-    latitude: float
-    longitude: float
