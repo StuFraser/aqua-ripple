@@ -2,7 +2,7 @@
 
 > **Plain-English water quality intelligence powered by satellite imagery and AI.**
 
-AquaRipple analyses real Sentinel-2 satellite data using Google Gemini to deliver water quality assessments at any location — and translates the science into practical, activity-based safety guidance that anyone can act on.
+AquaRipple analyses real Sentinel-2 satellite data to deliver water quality assessments at any location — and translates the science into practical, activity-based safety guidance that anyone can act on.
 
 ---
 
@@ -11,8 +11,8 @@ AquaRipple analyses real Sentinel-2 satellite data using Google Gemini to delive
 Drop a pin on any water body and AquaRipple will:
 
 - Fetch the clearest available Sentinel-2 satellite image from the past 12 months
-- Analyse four spectral views (true colour, false colour, NDWI water mask, NDCI chlorophyll index)
-- Return water quality indicators including chlorophyll-a, turbidity, algae bloom detection, water clarity, and cyanobacteria risk
+- Download raw spectral bands and compute water quality indices directly from pixel data (NDWI, MNDWI, NDCI, FAI, turbidity index, and more)
+- Interpret those indices using a calibrated LLM to produce water quality indicators: chlorophyll-a, turbidity, algae bloom detection, water clarity, and cyanobacteria risk
 - Translate those indicators into plain-English activity safety ratings for swimming, fishing, boating, irrigation, and animal watering
 - Derive an overall water quality score — entirely in code from the indicators, not from AI guesswork
 
@@ -46,8 +46,8 @@ AquaRipple is a polyglot microservices system. Each layer has a single, well-def
                               └───────────────┬──────────────┘
                                               │
                                      ┌────────▼────────┐
-                                     │  Google Gemini  │
-                                     │  Vision AI      │
+                                     │   Groq / Llama  │
+                                     │   (index interp)│
                                      └─────────────────┘
 ```
 
@@ -61,14 +61,15 @@ GetWet → Is this a water body?
       │
       ├─ No  → Show "not a water body" message
       │
-      └─ Yes → Fetch best Sentinel-2 image (lowest cloud cover, last 12 months)
+      └─ Yes → Fetch best Sentinel-2 scene (lowest cloud cover, last 12 months)
                     │
                     ▼
-             Generate 4 spectral views
-             (True colour · False colour · NDWI · NDCI)
+             Download raw spectral band windows (B03·B04·B05·B08·B11)
+             Compute indices over water pixels only
+             (NDWI · MNDWI · NDVI · NDCI · FAI · turbidity index · NTR)
                     │
                     ▼
-             Gemini analyses all 4 images
+             Groq (Llama 3.3 70B) interprets computed indices
              Returns raw indicators only
              (chlorophyll_a · turbidity · algae_bloom
               water_clarity · cyanobacteria_risk)
@@ -95,8 +96,9 @@ GetWet → Is this a water body?
 |---|---|
 | Frontend | React · Vite · TypeScript · Tailwind CSS · Leaflet |
 | API Gateway | C# · .NET 8 |
-| Analytics Engine | Python · FastAPI · pystac · Planetary Computer |
-| AI Analysis | Google Gemini (vision) |
+| Analytics Engine | Python · FastAPI · Rasterio · NumPy |
+| Spectral Indices | Computed from raw Sentinel-2 band data |
+| AI Interpretation | Groq — Llama 3.3 70B |
 | Water Detection | GetWet API (Overture Maps data) |
 | Place Search | GeoNames API |
 | Satellite Imagery | Sentinel-2 L2A via Microsoft Planetary Computer |
@@ -115,7 +117,8 @@ aqua-ripple/
 │   ├── Services/
 │   └── Models/
 └── analytics/                  # Python FastAPI analytics engine
-    ├── main.py                 # Analysis & location lookup endpoints
+    ├── main.py                 # Analysis endpoint
+    ├── spectral.py             # Sentinel-2 band download & index computation
     ├── rules_engine.py         # Config-driven activity safety rules
     ├── models.py               # Pydantic response models
     ├── config.py
@@ -127,8 +130,14 @@ aqua-ripple/
 
 ## 🎯 Design Decisions
 
-**Gemini returns indicators only — everything else is derived in code.**
-Activity safety ratings, overall quality, and friendly messages are all produced by the rules engine from the raw indicators. This keeps the AI focused on what it's good at (reading imagery) and puts the logic where it belongs — in testable, auditable code.
+**Spectral indices computed from raw band data — not rendered images.**
+Rather than passing visualisation tiles to an AI model, AquaRipple downloads the raw Sentinel-2 spectral bands and computes scientifically-grounded indices (NDWI, MNDWI, NDCI, FAI, turbidity index) directly from pixel reflectance values. This gives the LLM real measurements to interpret instead of asking it to guess from a JPEG.
+
+**The LLM interprets numbers, not pictures.**
+Groq receives a dict of computed float values with reference ranges and returns calibrated indicator levels. Its job is cross-index reasoning and uncertainty estimation — not image analysis. This eliminates the optimism bias that comes from vision models pattern-matching against training data.
+
+**Groq returns indicators only — everything else is derived in code.**
+Activity safety ratings, overall quality, and friendly messages are all produced by the rules engine from the raw indicators. This keeps the AI focused on what it's good at and puts the logic where it belongs — in testable, auditable code.
 
 **Activity rules are config-driven and hot-swappable.**
 `activity_rules.yaml` defines thresholds and messages for every activity. Rules can be tuned or new activities added without a code change or service restart.
@@ -157,7 +166,8 @@ Until MongoDB caching is implemented, the API gateway is a proxy — keeping ser
 |---|---|
 | [European Space Agency (ESA)](https://www.esa.int/) | Sentinel-2 multispectral imagery |
 | [Microsoft Planetary Computer](https://planetarycomputer.microsoft.com/) | Imagery hosting and STAC API |
-| [Google Gemini](https://deepmind.google/technologies/gemini/) | AI vision analysis |
+| [Groq](https://groq.com/) | LLM inference (Llama 3.3 70B) |
+| [Meta](https://ai.meta.com/llama/) | Llama 3.3 70B model |
 | [GetWet](https://getwet-eha7a2fufhhyenae.australiaeast-01.azurewebsites.net/docs) | Water body point detection via Overture Maps |
 | [GeoNames](https://www.geonames.org/) | Place and water body search |
 
@@ -165,4 +175,4 @@ Sentinel-2 data is provided under the [Copernicus Sentinel Data Legal Notice](ht
 
 ---
 
-*AquaRipple — built as a portfolio project. Water quality indicators are AI-generated from satellite imagery and are not verified by environmental professionals. Always check official advisories before making decisions about water use.*
+*AquaRipple — built as a portfolio project. Water quality indicators are derived from satellite imagery and AI interpretation and are not verified by environmental professionals. Always check official advisories before making decisions about water use.*
