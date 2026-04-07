@@ -17,25 +17,28 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
     {
     }
 
-    protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        // Allow preflight requests to pass through without authentication
+        // Allow CORS preflight requests to pass through without authentication
         if (Request.Method == HttpMethods.Options)
-        {
-            return AuthenticateResult.NoResult();
-        }
+            return Task.FromResult(AuthenticateResult.NoResult());
 
         if (!Request.Headers.TryGetValue(ApiKeyHeaderName, out var apiKeyHeaderValues))
         {
-            return AuthenticateResult.NoResult();
+            // Return Fail (not NoResult) so the fallback RequireAuthenticatedUser policy
+            // produces a 401 rather than silently passing the request as anonymous.
+            return Task.FromResult(AuthenticateResult.Fail("Missing API key."));
         }
 
         var providedApiKey = apiKeyHeaderValues.ToString();
-        var validApiKey = Context.RequestServices.GetRequiredService<IConfiguration>()["ApiKey:Value"];
+        var validApiKey = Context.RequestServices
+            .GetRequiredService<IConfiguration>()["ApiKey:Value"];
 
         if (string.IsNullOrEmpty(validApiKey) || !providedApiKey.Equals(validApiKey))
         {
-            return AuthenticateResult.Fail("Invalid API Key");
+            Logger.LogWarning("Invalid API key presented from {RemoteIp}",
+                Context.Connection.RemoteIpAddress);
+            return Task.FromResult(AuthenticateResult.Fail("Invalid API key."));
         }
 
         var claims = new[] { new Claim(ClaimTypes.NameIdentifier, "api-client") };
@@ -43,7 +46,7 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthentic
         var principal = new ClaimsPrincipal(identity);
         var ticket = new AuthenticationTicket(principal, Scheme.Name);
 
-        return AuthenticateResult.Success(ticket);
+        return Task.FromResult(AuthenticateResult.Success(ticket));
     }
 }
 

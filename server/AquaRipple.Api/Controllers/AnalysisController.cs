@@ -17,23 +17,17 @@ public class AnalysisController : ControllerBase
 
     /// <summary>
     /// Proxies to the Python analysis service — downloads satellite imagery
-    /// and runs Gemini AI analysis for the given coordinates.
+    /// and runs Groq LLM analysis for the given coordinates.
+    /// Rate limited via GlobalLimiter: max 3 concurrent globally, max 5/min per IP.
     /// </summary>
     [HttpPost("analyse")]
     public async Task<ActionResult<LocationAnalysisResponse>> Analyse([FromBody] LocationRequest request)
     {
-        try
-        {
-            var result = await _analysisService.AnalyseAsync(
-                request.Latitude,
-                request.Longitude,
-                request.WaterBodyName);
+        var result = await _analysisService.AnalyseAsync(
+            request.Latitude,
+            request.Longitude,
+            request.WaterBodyName);
 
-            return Ok(result);
-        }
-        catch (HttpRequestException ex)
-        {
-            return StatusCode(502, new { detail = $"Analytics service error: {ex.Message}" });
-        }
+        return Ok(result);
     }
 }

@@ -278,7 +278,7 @@ const About: React.FC = () => {
                 </div>
                 <p className="text-xs text-gray-400 leading-relaxed">
                     Sentinel-2 satellite imagery © ESA / Microsoft Planetary Computer.
-                    Water quality analysis powered by Google Gemini.
+                    Water quality analysis powered by Groq (Llama 3.3 70B).
                 </p>
             </Section>
 

@@ -48,12 +48,31 @@ public class AnalysisService
         try
         {
             response = await _httpClient.PostAsync("analyse?analysis_mode=true", content);
-            response.EnsureSuccessStatusCode();
         }
-        catch (HttpRequestException ex)
+        catch (TaskCanceledException ex)
         {
-            _logger.LogError(ex, "Analytics service error | lat={Lat} lon={Lon}", latitude, longitude);
-            throw;
+            _logger.LogWarning(ex, "Analytics service timed out | lat={Lat} lon={Lon}", latitude, longitude);
+            throw; // GlobalExceptionMiddleware maps to 504
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync();
+            var statusCode = (int)response.StatusCode;
+
+            // 404 (no imagery) and 422 (insufficient water pixels) are expected domain
+            // outcomes — not service errors. Log them at Warning, not Error.
+            if (statusCode is 404 or 422)
+                _logger.LogWarning(
+                    "Analytics service returned expected non-success {StatusCode} | lat={Lat} lon={Lon} | detail={Body}",
+                    statusCode, latitude, longitude, body);
+            else
+                _logger.LogError(
+                    "Analytics service returned {StatusCode} | lat={Lat} lon={Lon} | body={Body}",
+                    statusCode, latitude, longitude, body);
+
+            // Preserve the upstream status code (e.g. 429 Groq rate limit → 429 to client)
+            response.EnsureSuccessStatusCode();
         }
 
         var resultJson = await response.Content.ReadAsStringAsync();
