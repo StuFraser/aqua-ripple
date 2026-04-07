@@ -1,4 +1,3 @@
-import React, { useState } from "react";
 import PinInfo from "./pin-info";
 import LocationResults from "./location-results";
 import type LocationLookupResponse from "../types/LocationLookupResponse";

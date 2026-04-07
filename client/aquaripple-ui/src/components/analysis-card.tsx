@@ -53,7 +53,7 @@ interface AnalysisCardProps {
     onClick: () => void;
 }
 
-const AnalysisCard: React.FC<AnalysisCardProps> = ({ data, waterName, label, onClick }) => {
+const AnalysisCard: React.FC<AnalysisCardProps> = ({ data, label, onClick }) => {
     const worst = worstStatus(data);
     const warnings = warningActivities(data);
     const sc = statusConfig[worst];

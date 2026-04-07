@@ -98,38 +98,38 @@ const IndicatorRow: React.FC<{ icon: string; label: string; value: string; value
     </div>
 );
 
-const HistoryRow: React.FC<{ entry: WaterAnalysisResponse }> = ({ entry }) => {
-    const qc = qualityColour(entry.overall_quality);
-    const date = new Date(entry.datetime).toLocaleDateString("en-NZ", {
-        day: "numeric", month: "short", year: "numeric"
-    });
+// const HistoryRow: React.FC<{ entry: WaterAnalysisResponse }> = ({ entry }) => {
+//     const qc = qualityColour(entry.overall_quality);
+//     const date = new Date(entry.datetime).toLocaleDateString("en-NZ", {
+//         day: "numeric", month: "short", year: "numeric"
+//     });
 
-    // Find the worst indicator to surface as a one-liner
-    const worstIndicator = (() => {
-        const { chlorophyll_a, turbidity, cyanobacteria_risk, algae_bloom } = entry.indicators;
-        if (cyanobacteria_risk.level === "very_high" || cyanobacteria_risk.level === "high")
-            return `Cyanobacteria ${cyanobacteria_risk.level.replace("_", " ")}`;
-        if (algae_bloom.detected && algae_bloom.severity !== "none")
-            return `Algae bloom ${algae_bloom.severity}`;
-        if (chlorophyll_a.level === "very_high" || chlorophyll_a.level === "high")
-            return `Chlorophyll-a ${chlorophyll_a.level.replace("_", " ")}`;
-        if (turbidity.level === "very_high" || turbidity.level === "high")
-            return `Turbidity ${turbidity.level.replace("_", " ")}`;
-        return "No significant concerns";
-    })();
+//     // Find the worst indicator to surface as a one-liner
+//     const worstIndicator = (() => {
+//         const { chlorophyll_a, turbidity, cyanobacteria_risk, algae_bloom } = entry.indicators;
+//         if (cyanobacteria_risk.level === "very_high" || cyanobacteria_risk.level === "high")
+//             return `Cyanobacteria ${cyanobacteria_risk.level.replace("_", " ")}`;
+//         if (algae_bloom.detected && algae_bloom.severity !== "none")
+//             return `Algae bloom ${algae_bloom.severity}`;
+//         if (chlorophyll_a.level === "very_high" || chlorophyll_a.level === "high")
+//             return `Chlorophyll-a ${chlorophyll_a.level.replace("_", " ")}`;
+//         if (turbidity.level === "very_high" || turbidity.level === "high")
+//             return `Turbidity ${turbidity.level.replace("_", " ")}`;
+//         return "No significant concerns";
+//     })();
 
-    return (
-        <div className="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0">
-            <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-aqua-dark">{date}</p>
-                <p className="text-xs text-gray-400 truncate">{worstIndicator}</p>
-            </div>
-            <div className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-semibold ${qc.bg} ${qc.text} ${qc.border}`}>
-                <span className="capitalize">{entry.overall_quality.replace("_", " ")}</span>
-            </div>
-        </div>
-    );
-};
+//     return (
+//         <div className="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0">
+//             <div className="flex-1 min-w-0">
+//                 <p className="text-xs font-semibold text-aqua-dark">{date}</p>
+//                 <p className="text-xs text-gray-400 truncate">{worstIndicator}</p>
+//             </div>
+//             <div className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-semibold ${qc.bg} ${qc.text} ${qc.border}`}>
+//                 <span className="capitalize">{entry.overall_quality.replace("_", " ")}</span>
+//             </div>
+//         </div>
+//     );
+// };
 
 // ── Main modal ───────────────────────────────────────────────────────────────
 
