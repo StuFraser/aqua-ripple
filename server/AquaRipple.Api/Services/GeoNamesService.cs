@@ -99,60 +99,6 @@ public class GeoNamesService
     }
 
     /// <summary>
-    /// Determines whether a lat/lon point is on or very close to a water body.
-    /// 
-    /// NOTE: Deprecated — do not use. GeoNames findNearby operates on a radius
-    /// basis and proved unreliable for point detection, frequently returning false
-    /// positives on land near water and missing smaller water bodies entirely.
-    /// Use GetWetService.CheckAsync for point-based water detection instead.
-    /// </summary>
-    [Obsolete("Unreliable for point detection. Use GetWetService.CheckAsync instead.")]
-    public async Task<LocationLookupResponse> CheckWaterBodyAsync(double lat, double lng, int radiusKm = 1)
-    {
-        var client = _httpClientFactory.CreateClient("GeoNames");
-        var url = $"findNearbyJSON?lat={lat}&lng={lng}&featureClass=H&radius={radiusKm}&maxRows=5&username={_username}";
-
-        try
-        {
-            var response = await client.GetAsync(url);
-            response.EnsureSuccessStatusCode();
-
-            using var stream = await response.Content.ReadAsStreamAsync();
-            using var doc = await JsonDocument.ParseAsync(stream);
-
-            if (!doc.RootElement.TryGetProperty("geonames", out var geonames))
-            {
-                _logger.LogWarning("GeoNames findNearby returned no 'geonames' array for ({Lat},{Lng})", lat, lng);
-                return new LocationLookupResponse(false, null, "No nearby water features found.");
-            }
-
-            // Look for the first result that is a recognised water feature code
-            foreach (var feature in geonames.EnumerateArray())
-            {
-                var fcl = feature.TryGetProperty("fcl", out var fclEl) ? fclEl.GetString() : null;
-                var fcode = feature.TryGetProperty("fcode", out var fcEl) ? fcEl.GetString() : null;
-                var name = feature.TryGetProperty("name", out var nameEl) ? nameEl.GetString() : null;
-                var fclName = feature.TryGetProperty("fclName", out var fclNameEl) ? fclNameEl.GetString() : null;
-                var fcodeName = feature.TryGetProperty("fcodeName", out var fcodeNameEl) ? fcodeNameEl.GetString() : null;
-
-                if (fcl == "H" && fcode is not null && WaterFeatureCodes.Contains(fcode))
-                {
-                    var description = fcodeName ?? fclName ?? "Water body";
-                    _logger.LogInformation("GeoNames water hit at ({Lat},{Lng}): {Name} [{FCode}]", lat, lng, name, fcode);
-                    return new LocationLookupResponse(true, name, $"{description}");
-                }
-            }
-
-            return new LocationLookupResponse(false, null, "Location does not appear to be on a water body.");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "GeoNames findNearby failed for ({Lat},{Lng})", lat, lng);
-            return new LocationLookupResponse(false, null, "Unable to determine water body status.");
-        }
-    }
-
-    /// <summary>
     /// Searches GeoNames for water bodies / places matching a query string.
     /// Returns up to maxRows results suitable for map search autocomplete.
     /// </summary>

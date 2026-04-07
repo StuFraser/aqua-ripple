@@ -56,29 +56,29 @@ public class GetWetService
 
     /// <summary>
     /// Warms the GetWet tile cache for the given coordinates.
-    /// Errors are logged and propagated so callers can decide whether to surface them.
+    /// Errors are logged and swollowed.  Warming is a convinance thing, so not earth stattering if it fails
+    /// Logged however becouse may well be a signal something more is going on
     /// </summary>
-    public async Task<string> WarmCacheAsync(double latitude, double longitude)
+public async Task<string?> WarmCacheAsync(double latitude, double longitude)
+{
+    _logger.LogDebug("GetWet cache warm starting | lat={Lat} lon={Lon}", latitude, longitude);
+
+    var client = _httpClientFactory.CreateClient("GetWet");
+
+    try
     {
-        _logger.LogDebug("GetWet cache warm starting | lat={Lat} lon={Lon}", latitude, longitude);
-
-        var client = _httpClientFactory.CreateClient("GetWet");
-
-        HttpResponseMessage response;
-        try
-        {
-            response = await client.PostAsync(
-                $"/cache/warm?lat={latitude}&lng={longitude}", null);
-        }
-        catch (TaskCanceledException ex)
-        {
-            _logger.LogWarning(ex, "GetWet warm timed out | lat={Lat} lon={Lon}", latitude, longitude);
-            throw;
-        }
+        var response = await client.PostAsync(
+            $"/cache/warm?lat={latitude}&lng={longitude}", null);
 
         response.EnsureSuccessStatusCode();
 
         _logger.LogInformation("GetWet cache warm completed | lat={Lat} lon={Lon}", latitude, longitude);
         return await response.Content.ReadAsStringAsync();
     }
+    catch (Exception ex) when (ex is TaskCanceledException or HttpRequestException)
+    {
+        _logger.LogWarning(ex, "GetWet cache warm failed (non-fatal) | lat={Lat} lon={Lon}", latitude, longitude);
+        return null;
+    }
+}
 }

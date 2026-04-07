@@ -92,10 +92,10 @@ builder.Services.AddHttpClient("Analytics", client =>
     pipeline.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
     {
         // Open the circuit after 3 failures in a 60-second sampling window
-        SamplingDuration  = TimeSpan.FromSeconds(60),
+        SamplingDuration = TimeSpan.FromSeconds(60),
         MinimumThroughput = 3,
-        FailureRatio      = 0.6,
-        BreakDuration     = TimeSpan.FromSeconds(30),
+        FailureRatio = 0.6,
+        BreakDuration = TimeSpan.FromSeconds(30),
 
         // Only count genuine server/infra failures against the circuit.
         //   404 ImageryNotFoundError  — no satellite pass yet, not a service fault
@@ -118,18 +118,18 @@ builder.Services.AddHttpClient("GetWet", client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["GetWet:BaseUrl"]!);
     client.DefaultRequestHeaders.Add("x-api-key", builder.Configuration["GetWet:ApiKey"]!);
-    client.Timeout = TimeSpan.FromSeconds(15); // tighter than before — these should be fast
+    client.Timeout = TimeSpan.FromSeconds(60); 
 })
 .AddResilienceHandler("getwet-resilience", pipeline =>
 {
     pipeline.AddRetry(new HttpRetryStrategyOptions
     {
         MaxRetryAttempts = 2,
-        Delay            = TimeSpan.FromMilliseconds(300),
-        BackoffType      = DelayBackoffType.Exponential,
-        UseJitter        = true,
+        Delay = TimeSpan.FromMilliseconds(300),
+        BackoffType = DelayBackoffType.Exponential,
+        UseJitter = true,
         // Only retry transient failures — not 401/403/404/422/429
-        ShouldHandle     = args => ValueTask.FromResult(
+        ShouldHandle = args => ValueTask.FromResult(
             args.Outcome.Exception is HttpRequestException or TaskCanceledException ||
             (args.Outcome.Result?.StatusCode is
                 System.Net.HttpStatusCode.InternalServerError or
@@ -140,10 +140,10 @@ builder.Services.AddHttpClient("GetWet", client =>
 
     pipeline.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
     {
-        SamplingDuration  = TimeSpan.FromSeconds(30),
+        SamplingDuration = TimeSpan.FromSeconds(30),
         MinimumThroughput = 5,
-        FailureRatio      = 0.5,
-        BreakDuration     = TimeSpan.FromSeconds(20),
+        FailureRatio = 0.5,
+        BreakDuration = TimeSpan.FromSeconds(20),
     });
 });
 
@@ -159,10 +159,10 @@ builder.Services.AddHttpClient("GeoNames", client =>
     pipeline.AddRetry(new HttpRetryStrategyOptions
     {
         MaxRetryAttempts = 2,
-        Delay            = TimeSpan.FromMilliseconds(200),
-        BackoffType      = DelayBackoffType.Exponential,
-        UseJitter        = true,
-        ShouldHandle     = args => ValueTask.FromResult(
+        Delay = TimeSpan.FromMilliseconds(200),
+        BackoffType = DelayBackoffType.Exponential,
+        UseJitter = true,
+        ShouldHandle = args => ValueTask.FromResult(
             args.Outcome.Exception is HttpRequestException or TaskCanceledException ||
             (args.Outcome.Result?.StatusCode is
                 System.Net.HttpStatusCode.InternalServerError or
@@ -173,10 +173,10 @@ builder.Services.AddHttpClient("GeoNames", client =>
 
     pipeline.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
     {
-        SamplingDuration  = TimeSpan.FromSeconds(30),
+        SamplingDuration = TimeSpan.FromSeconds(30),
         MinimumThroughput = 5,
-        FailureRatio      = 0.5,
-        BreakDuration     = TimeSpan.FromSeconds(15),
+        FailureRatio = 0.5,
+        BreakDuration = TimeSpan.FromSeconds(15),
     });
 });
 
@@ -197,7 +197,11 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowClient", policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        var allowedOrigins = builder.Configuration
+            .GetSection("AllowedOrigins")
+            .Get<string[]>() ?? [];
+
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
@@ -240,11 +244,11 @@ builder.Services.AddRateLimiter(options =>
 
         var problem = new
         {
-            title    = errorCode == "RATE_LIMITED"
+            title = errorCode == "RATE_LIMITED"
                 ? "Too many analysis requests. Please wait before trying again."
                 : "Too many simultaneous analysis requests. Please try again in a moment.",
-            status   = 429,
-            detail   = errorCode == "RATE_LIMITED"
+            status = 429,
+            detail = errorCode == "RATE_LIMITED"
                 ? $"Rate limit exceeded. Try again in {(hasRetryAfter ? $"{(int)retryAfter.TotalSeconds} seconds" : "a moment")}."
                 : "The server is processing the maximum number of concurrent analyses.",
             errorCode,
@@ -272,8 +276,8 @@ builder.Services.AddRateLimiter(options =>
             return RateLimitPartition.GetConcurrencyLimiter("global", _ =>
                 new ConcurrencyLimiterOptions
                 {
-                    PermitLimit          = 3,
-                    QueueLimit           = 0,
+                    PermitLimit = 3,
+                    QueueLimit = 0,
                     QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                 });
         }),
@@ -288,11 +292,11 @@ builder.Services.AddRateLimiter(options =>
             return RateLimitPartition.GetSlidingWindowLimiter(ip, _ =>
                 new SlidingWindowRateLimiterOptions
                 {
-                    PermitLimit          = 5,
-                    Window               = TimeSpan.FromMinutes(1),
-                    SegmentsPerWindow    = 4,
-                    AutoReplenishment    = true,
-                    QueueLimit           = 0,
+                    PermitLimit = 5,
+                    Window = TimeSpan.FromMinutes(1),
+                    SegmentsPerWindow = 4,
+                    AutoReplenishment = true,
+                    QueueLimit = 0,
                     QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                 });
         })

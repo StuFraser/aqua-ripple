@@ -36,15 +36,4 @@ public class GeoNamesController : ControllerBase
         return Ok(results);
     }
 
-    /// <summary>
-    /// Deprecated — use POST /api/getwet/check instead.
-    /// GeoNames radius-based detection proved unreliable for point detection.
-    /// </summary>
-    [Obsolete("Use GetWetService for point detection.")]
-    [HttpPost("water-detect")]
-    public async Task<ActionResult<LocationLookupResponse>> WaterDetect([FromBody] LocationRequest request)
-    {
-        var result = await _geoNamesService.CheckWaterBodyAsync(request.Latitude, request.Longitude);
-        return Ok(result);
-    }
 }
