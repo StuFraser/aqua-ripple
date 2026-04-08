@@ -1,0 +1,39 @@
+name: Deploy Analytics to Azure
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'analytics/**'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        working-directory: analytics
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Zip analytics folder for deployment
+        run: |
+          cd analytics
+          zip -r ../analytics-deploy.zip . -x "*.pyc" -x "__pycache__/*" -x ".env"
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ secrets.AZURE_ANALYTICS_APP_NAME }}
+          publish-profile: ${{ secrets.AZURE_ANALYTICS_PUBLISH_PROFILE }}
+          package: analytics-deploy.zip
