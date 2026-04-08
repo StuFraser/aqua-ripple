@@ -15,14 +15,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Zip analytics folder for deployment
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy via Azure CLI
         run: |
           cd analytics
           zip -r ../analytics-deploy.zip . -x "*.pyc" -x "__pycache__/*" -x ".env" -x ".venv/*"
-
-      - name: Deploy to Azure App Service
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ secrets.AZURE_ANALYTICS_APP_NAME }}
-          publish-profile: ${{ secrets.AZURE_ANALYTICS_PUBLISH_PROFILE }}
-          package: analytics-deploy.zip
+          az webapp deploy \
+            --name ${{ secrets.AZURE_ANALYTICS_APP_NAME }} \
+            --resource-group AquaRipple \
+            --src-path ../analytics-deploy.zip \
+            --type zip \
+            --async false
