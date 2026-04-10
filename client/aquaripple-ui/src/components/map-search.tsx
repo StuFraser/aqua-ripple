@@ -199,12 +199,12 @@ const MapSearch: React.FC<MapSearchProps> = ({ onResultSelect }) => {
             <button
                 onClick={handleSearch}
                 disabled={isLoading || query.trim().length < MIN_QUERY_LEN}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                 style={{ background: '#009CDE' }}
                 aria-label="Search"
             >
                 <SearchIcon spinning={isLoading} />
-                Search
+                <span className="hidden sm:inline">Search</span>
             </button>
 
             {/* Dropdown */}

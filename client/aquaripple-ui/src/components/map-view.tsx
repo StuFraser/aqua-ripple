@@ -202,6 +202,7 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(({ onLocationSelect }, r
                 scrollWheelZoom={false}
                 doubleClickZoom={true}
                 dragging={true}
+                
             >
                 <FlyToController flyToRef={flyToFnRef} />
                 <MapEventHandler
