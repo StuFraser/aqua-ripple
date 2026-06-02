@@ -15,6 +15,7 @@ Drop a pin on any water body and AquaRipple will:
 - Interpret those indices using a calibrated LLM to produce water quality indicators: chlorophyll-a, turbidity, algae bloom detection, water clarity, and cyanobacteria risk
 - Translate those indicators into plain-English activity safety ratings for swimming, fishing, boating, irrigation, and animal watering
 - Derive an overall water quality score — entirely in code from the indicators, not from AI guesswork
+- Surface historical comparisons — show how a water body's quality has shifted across recent satellite passes
 
 ---
 
@@ -30,7 +31,7 @@ AquaRipple is a polyglot microservices system. Each layer has a single, well-def
                           │ HTTP
 ┌─────────────────────────▼───────────────────────────────┐
 │                   .NET 8 API Gateway                     │
-│     Proxy · GeoNames search · (MongoDB cache — planned)  │
+│    Orchestration · GeoNames search · MongoDB cache       │
 └──────┬──────────────────┬──────────────────┬────────────┘
        │ HTTP             │ HTTP             │ HTTP
 ┌──────▼──────┐  ┌────────▼────────┐  ┌─────▼──────────┐
@@ -57,52 +58,60 @@ AquaRipple is a polyglot microservices system. Each layer has a single, well-def
 User drops pin
       │
       ▼
-GetWet → Is this a water body?
+C# Gateway → MongoDB cache hit within radius?
       │
-      ├─ No  → Show "not a water body" message
+      ├─ Yes → Return cached result + historical comparison
       │
-      └─ Yes → Fetch best Sentinel-2 scene (lowest cloud cover, last 12 months)
+      └─ No  → GetWet → Is this a water body?
                     │
-                    ▼
-             Download raw spectral band windows (B03·B04·B05·B08·B11)
-             Compute indices over water pixels only
-             (NDWI · MNDWI · NDVI · NDCI · FAI · turbidity index · NTR)
+                    ├─ No  → Show "not a water body" message
                     │
-                    ▼
-             Groq (Llama 3.3 70B) interprets computed indices
-             Returns raw indicators only
-             (chlorophyll_a · turbidity · algae_bloom
-              water_clarity · cyanobacteria_risk)
-                    │
-                    ▼
-             Rules engine (activity_rules.yaml)
-             Derives activity safety ratings
-             (swimming · fishing · boating
-              irrigation · animal_watering)
-                    │
-                    ▼
-             Overall quality derived in code
-             from indicator levels
-                    │
-                    ▼
-             Results returned to client
+                    └─ Yes → Fetch best Sentinel-2 scene (lowest cloud cover, last 12 months)
+                                  │
+                                  ▼
+                           Download raw spectral band windows (B03·B04·B05·B08·B11)
+                           Compute indices over water pixels only
+                           (NDWI · MNDWI · NDVI · NDCI · FAI · turbidity index · NTR)
+                                  │
+                                  ▼
+                           Groq (Llama 3.3 70B) interprets computed indices
+                           Returns raw indicators only
+                           (chlorophyll_a · turbidity · algae_bloom
+                            water_clarity · cyanobacteria_risk)
+                                  │
+                                  ▼
+                           Rules engine (activity_rules.yaml)
+                           Derives activity safety ratings
+                           (swimming · fishing · boating
+                            irrigation · animal_watering)
+                                  │
+                                  ▼
+                           Overall quality derived in code
+                           from indicator levels
+                                  │
+                                  ▼
+                           Result stored in MongoDB
+                           (geospatial index · 6-month TTL)
+                                  │
+                                  ▼
+                           Results returned to client
 ```
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | React · Vite · TypeScript · Tailwind CSS · Leaflet |
-| API Gateway | C# · .NET 8 |
-| Analytics Engine | Python · FastAPI · Rasterio · NumPy |
-| Spectral Indices | Computed from raw Sentinel-2 band data |
-| AI Interpretation | Groq — Llama 3.3 70B |
-| Water Detection | GetWet API (Overture Maps data) |
-| Place Search | GeoNames API |
-| Satellite Imagery | Sentinel-2 L2A via Microsoft Planetary Computer |
-| Database | MongoDB (planned — geospatial result caching) |
+| Layer             | Technology                                                        |
+| ----------------- | ----------------------------------------------------------------- |
+| Frontend          | React · Vite · TypeScript · Tailwind CSS · Leaflet                |
+| API Gateway       | C# · .NET 8                                                       |
+| Analytics Engine  | Python · FastAPI · Rasterio · NumPy                               |
+| Spectral Indices  | Computed from raw Sentinel-2 band data                            |
+| AI Interpretation | Groq — Llama 3.3 70B                                              |
+| Water Detection   | GetWet API (Overture Maps data)                                   |
+| Place Search      | GeoNames API                                                      |
+| Satellite Imagery | Sentinel-2 L2A via Microsoft Planetary Computer                   |
+| Database          | MongoDB Atlas (Azure) — geospatial result caching & history       |
 
 ---
 
@@ -130,46 +139,37 @@ aqua-ripple/
 
 ## 🎯 Design Decisions
 
-**Spectral indices computed from raw band data — not rendered images.**
-Rather than passing visualisation tiles to an AI model, AquaRipple downloads the raw Sentinel-2 spectral bands and computes scientifically-grounded indices (NDWI, MNDWI, NDCI, FAI, turbidity index) directly from pixel reflectance values. This gives the LLM real measurements to interpret instead of asking it to guess from a JPEG.
+**Spectral indices computed from raw band data — not rendered images.** Rather than passing visualisation tiles to an AI model, AquaRipple downloads the raw Sentinel-2 spectral bands and computes scientifically-grounded indices (NDWI, MNDWI, NDCI, FAI, turbidity index) directly from pixel reflectance values. This gives the LLM real measurements to interpret instead of asking it to guess from a JPEG.
 
-**The LLM interprets numbers, not pictures.**
-Groq receives a dict of computed float values with reference ranges and returns calibrated indicator levels. Its job is cross-index reasoning and uncertainty estimation — not image analysis. This eliminates the optimism bias that comes from vision models pattern-matching against training data.
+**The LLM interprets numbers, not pictures.** Groq receives a dict of computed float values with reference ranges and returns calibrated indicator levels. Its job is cross-index reasoning and uncertainty estimation — not image analysis. This eliminates the optimism bias that comes from vision models pattern-matching against training data.
 
-**Groq returns indicators only — everything else is derived in code.**
-Activity safety ratings, overall quality, and friendly messages are all produced by the rules engine from the raw indicators. This keeps the AI focused on what it's good at and puts the logic where it belongs — in testable, auditable code.
+**Groq returns indicators only — everything else is derived in code.** Activity safety ratings, overall quality, and friendly messages are all produced by the rules engine from the raw indicators. This keeps the AI focused on what it's good at and puts the logic where it belongs — in testable, auditable code.
 
-**Activity rules are config-driven and hot-swappable.**
-`activity_rules.yaml` defines thresholds and messages for every activity. Rules can be tuned or new activities added without a code change or service restart.
+**Activity rules are config-driven and hot-swappable.** `activity_rules.yaml` defines thresholds and messages for every activity. Rules can be tuned or new activities added without a code change or service restart.
 
-**Worst indicator wins.**
-When multiple indicators give conflicting signals, the most cautious result always takes precedence. AquaRipple always errs on the side of safety.
+**Worst indicator wins.** When multiple indicators give conflicting signals, the most cautious result always takes precedence. AquaRipple always errs on the side of safety.
 
-**No drinking water ratings.**
-Surface water should never be flagged safe to drink by an automated system. Cyanotoxins aren't removed by boiling, and the liability and public safety implications of getting it wrong are too high.
+**No drinking water ratings.** Surface water should never be flagged safe to drink by an automated system. Cyanotoxins aren't removed by boiling, and the liability and public safety implications of getting it wrong are too high.
 
-**The C# layer is intentionally thin.**
-Until MongoDB caching is implemented, the API gateway is a proxy — keeping service URLs and keys off the client, and providing a single entry point that the frontend never needs to know changed when caching lands.
+**The C# layer owns orchestration and caching.** The API gateway coordinates calls across GetWet, the analytics engine, and MongoDB — serving cache hits for previously analysed locations, storing new results with a geospatial index, and keeping all service URLs and keys off the client. Cache entries expire after 6 months to account for seasonal variation.
 
----
+**Geospatial caching with configurable radius matching.** MongoDB results are indexed by coordinate. Cache hits are served for any query within a configurable radius of a previously analysed point, avoiding redundant satellite pipeline calls for nearby locations.
 
-## 🔮 Planned
-
-- **MongoDB geospatial caching** — store analysis results indexed by coordinate, expire after 6 months to cover seasonal variation, serve cache hits within configurable radius without hitting the satellite pipeline
-- **Historical comparison** — surface how a water body's quality has changed over recent satellite passes
+**Historical comparison from cached results.** Because MongoDB retains prior analyses within the TTL window, the gateway can surface how a water body's indicators have shifted across passes — without any additional satellite or LLM calls.
 
 ---
 
 ## 🛰️ Data & Attributions
 
-| Source | Usage |
-|---|---|
-| [European Space Agency (ESA)](https://www.esa.int/) | Sentinel-2 multispectral imagery |
-| [Microsoft Planetary Computer](https://planetarycomputer.microsoft.com/) | Imagery hosting and STAC API |
-| [Groq](https://groq.com/) | LLM inference (Llama 3.3 70B) |
-| [Meta](https://ai.meta.com/llama/) | Llama 3.3 70B model |
+| Source                                                                            | Usage                                        |
+| --------------------------------------------------------------------------------- | -------------------------------------------- |
+| [European Space Agency (ESA)](https://www.esa.int/)                               | Sentinel-2 multispectral imagery             |
+| [Microsoft Planetary Computer](https://planetarycomputer.microsoft.com/)          | Imagery hosting and STAC API                 |
+| [Groq](https://groq.com/)                                                         | LLM inference (Llama 3.3 70B)                |
+| [Meta](https://ai.meta.com/llama/)                                                | Llama 3.3 70B model                          |
 | [GetWet](https://getwet-eha7a2fufhhyenae.australiaeast-01.azurewebsites.net/docs) | Water body point detection via Overture Maps |
-| [GeoNames](https://www.geonames.org/) | Place and water body search |
+| [GeoNames](https://www.geonames.org/)                                             | Place and water body search                  |
+| [MongoDB Atlas](https://www.mongodb.com/atlas)                                    | Geospatial result caching & historical data  |
 
 Sentinel-2 data is provided under the [Copernicus Sentinel Data Legal Notice](https://sentinels.copernicus.eu/documents/247904/690755/Sentinel_Data_Legal_Notice).
 
