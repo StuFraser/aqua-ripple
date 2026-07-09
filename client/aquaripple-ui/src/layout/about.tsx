@@ -116,14 +116,16 @@ const About: React.FC = () => {
                     How AquaRipple Works
                 </h1>
                 <p className="text-sm text-gray-600 leading-relaxed">
-                    AquaRipple uses real Sentinel-2 satellite imagery analysed by AI to give you
-                    a plain-English picture of water quality at any location. Here's what the
+                    AquaRipple uses real Sentinel-2 satellite imagery to give you a plain-English
+                    picture of water quality at any location — interpreted either by a deterministic
+                    rules engine (the default) or, if you switch it on, an AI model. Here's what the
                     indicators mean and how to read the results.
                 </p>
                 <div className="mt-1 p-3 bg-amber-50 border border-amber-200 rounded-lg flex gap-2">
                     <span className="text-base shrink-0">⚠️</span>
                     <p className="text-xs text-amber-800 leading-relaxed">
-                        Results are AI-generated from satellite imagery and are not verified by
+                        Results are generated from satellite imagery — either by deterministic
+                        analysis or, in AI-assisted mode, an AI model — and are not verified by
                         environmental professionals. Always check official advisories before
                         making decisions about water use.
                     </p>
@@ -133,14 +135,14 @@ const About: React.FC = () => {
             {/* How it works */}
             <Section
                 title="How It Works"
-                subtitle="Four satellite images are analysed each time you drop a pin."
+                subtitle="Every pin drop runs the same satellite pipeline — you choose how the results get interpreted."
             >
                 <div className="grid grid-cols-2 gap-2">
                     {[
-                        { icon: "🛰️", label: "True Colour",       desc: "Natural RGB view for context" },
-                        { icon: "🔴", label: "False Colour",       desc: "Highlights vegetation & algae" },
-                        { icon: "🔵", label: "Water Mask",         desc: "Identifies water extent" },
-                        { icon: "🟢", label: "Chlorophyll Index",  desc: "Maps algae concentration" },
+                        { icon: "🛰️", label: "Fresh Imagery",     desc: "Most recent scene within 30 days, low cloud cover" },
+                        { icon: "📊", label: "Spectral Indices",  desc: "NDCI, turbidity index, FAI & more from raw bands" },
+                        { icon: "⚙️", label: "Rule-based",        desc: "Deterministic thresholds — instant, no AI (default)" },
+                        { icon: "✨", label: "AI-assisted",       desc: "Groq/Llama reads the same indices when switched on" },
                     ].map(item => (
                         <div key={item.label} className="flex gap-2 p-3 bg-white border border-gray-100 rounded-lg">
                             <span className="text-lg shrink-0">{item.icon}</span>
@@ -152,8 +154,10 @@ const About: React.FC = () => {
                     ))}
                 </div>
                 <p className="text-xs text-gray-500 leading-relaxed">
-                    The clearest available image from the past 12 months is used. The AI
-                    reads all four views together to estimate each indicator below.
+                    The most recent scene from the past 30 days that clears the cloud-cover filter
+                    is used. Whichever mode is active — rule-based or AI-assisted — reads the same
+                    computed indices to estimate each indicator below; you can switch modes any time
+                    from the toggle next to the search bar.
                 </p>
             </Section>
 
@@ -265,7 +269,7 @@ const About: React.FC = () => {
             <Section title="Limitations & Data Sources">
                 <div className="flex flex-col gap-2">
                     {[
-                        { icon: "📅", text: "Imagery is from the clearest available pass in the past 12 months — conditions may have changed." },
+                        { icon: "📅", text: "Imagery is from the most recent pass in the last 30 days that clears the cloud-cover filter — conditions may have changed since then." },
                         { icon: "☁️", text: "Heavy cloud cover or haze can affect indicator accuracy, even in images that appear cloud-free." },
                         { icon: "🔬", text: "Bacterial contamination, chemical pollutants, and pH cannot be detected from satellite imagery." },
                         { icon: "🗺️", text: "Indicator accuracy is best for open water bodies. Small streams and narrow channels may have lower confidence." },
@@ -278,7 +282,8 @@ const About: React.FC = () => {
                 </div>
                 <p className="text-xs text-gray-400 leading-relaxed">
                     Sentinel-2 satellite imagery © ESA / Microsoft Planetary Computer.
-                    Water quality analysis powered by Groq (Llama 3.3 70B).
+                    Water quality analysis by AquaRipple's deterministic rules engine, or
+                    optionally Groq (Llama 3.3 70B) in AI-assisted mode.
                 </p>
             </Section>
 

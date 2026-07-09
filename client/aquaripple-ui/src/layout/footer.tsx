@@ -9,7 +9,7 @@ const Footer: React.FC = () => {
                 </p>
                 <div className="text-center text-xs text-white/60 max-w-xl">
                     <span className="font-semibold text-white/80">Disclaimer: </span>
-                    Water quality indicators are AI-generated and unverified by environmental professionals.
+                    Water quality indicators are computer-generated and unverified by environmental professionals.
                     Provided for experimental purposes only — use at your own risk.
                 </div>
                 <p className="text-xs text-white/60 text-right">
