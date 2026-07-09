@@ -185,14 +185,19 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(({ onLocationSelect }, r
 
     return (
         <div className="relative h-full w-full">
-            {locationError && (
-                <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-4 py-2 text-sm text-amber-800 bg-amber-50 border border-amber-300 rounded-lg shadow-md">
-                    <span>⚠️</span>
-                    <span>{getLocationErrorMessage(locationError)}</span>
-                </div>
-            )}
+            {/* Shared notification stack — banner and toast are both centered/top-anchored,
+                so they're laid out in one flex column rather than independently absolute-
+                positioned, which used to let them render on top of each other. */}
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 max-w-[90%]">
+                {locationError && (
+                    <div className="flex items-center gap-2 px-4 py-2 text-sm text-amber-800 bg-amber-50 border border-amber-300 rounded-lg shadow-md">
+                        <span>⚠️</span>
+                        <span>{getLocationErrorMessage(locationError)}</span>
+                    </div>
+                )}
 
-            <Toast state={warmState} />
+                <Toast state={warmState} />
+            </div>
 
             <MapContainer
                 center={userLocation}

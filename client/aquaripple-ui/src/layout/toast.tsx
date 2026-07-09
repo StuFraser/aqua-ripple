@@ -43,14 +43,13 @@ const Toast: React.FC<ToastProps> = ({ state }) => {
     const isDone = state === "done";
 
     return (
+        // Positioning (absolute/top/left/z-index) is owned by the parent's notification
+        // stack, not here, so this can sit below other notices (e.g. the location-permission
+        // banner) in a shared column instead of both centering on the same spot and overlapping.
         <div
             style={{
-                position: "absolute",
-                top: "0.625rem",
-                left: "50%",
-                transform: `translateX(-50%) translateY(${phase === "shown" ? "0" : "-110%"})`,
+                transform: `translateY(${phase === "shown" ? "0" : "-110%"})`,
                 transition: "transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
-                zIndex: 1000,
                 pointerEvents: "none",
             }}
         >

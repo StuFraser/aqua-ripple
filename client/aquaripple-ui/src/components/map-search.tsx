@@ -167,7 +167,7 @@ const MapSearch: React.FC<MapSearchProps> = ({ onResultSelect }) => {
     // ── Render ──────────────────────────────────────────────────────────────
 
     return (
-        <div ref={containerRef} className="relative flex items-center gap-2 flex-1">
+        <div ref={containerRef} className="relative flex items-center gap-2 flex-1 min-w-[200px]">
             {/* Input */}
             <div className="relative flex-1">
                 <input
