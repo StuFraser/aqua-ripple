@@ -54,14 +54,14 @@ class Coordinates(BaseModel):
 
 def get_signed_item(coords: Coordinates, settings: AquaSettings):
     """
-    Search Planetary Computer for the lowest-cloud Sentinel-2 scene
-    covering coords, sign it, and return (signed_item, bbox, metadata).
+    Search Planetary Computer for the most recent Sentinel-2 scene covering coords
+    that clears the cloud-cover filter, sign it, and return (signed_item, bbox, metadata).
     """
     bbox = [
         coords.lon - settings.box_size, coords.lat - settings.box_size,
         coords.lon + settings.box_size, coords.lat + settings.box_size,
     ]
-    date_from = (datetime.now() - timedelta(days=365)).isoformat()
+    date_from = (datetime.now() - timedelta(days=settings.search_window_days)).isoformat()
     date_to   = datetime.now().isoformat()
 
     log.debug(
@@ -75,13 +75,20 @@ def get_signed_item(coords: Coordinates, settings: AquaSettings):
         raise ImageryNotFoundError(f"Failed to connect to STAC catalog: {e}") from e
 
     try:
+        # sortby + max_items=1 asks the STAC API itself for the single most recent
+        # scene matching the cloud-cover filter. Previously this fetched every
+        # matching scene in the window and picked the lowest-cloud one overall,
+        # which could — and did — surface a near-zero-cloud scene from months ago
+        # over a perfectly acceptable one from last week.
         search = catalog.search(
             collections=settings.search_collections,
             bbox=bbox,
             datetime=f"{date_from}Z/{date_to}Z",
             query=settings.search_query,
+            sortby=[{"field": "properties.datetime", "direction": "desc"}],
+            max_items=1,
         )
-        items = list(search.get_items())
+        items = list(search.items())
     except Exception as e:
         raise ImageryNotFoundError(f"STAC search failed: {e}") from e
 
@@ -90,37 +97,32 @@ def get_signed_item(coords: Coordinates, settings: AquaSettings):
     if not items:
         raise ImageryNotFoundError(
             f"No satellite imagery found for ({coords.lat}, {coords.lon}) "
-            "with cloud cover <20% in the past 12 months."
+            f"matching the configured cloud-cover filter in the past {settings.search_window_days} days."
         )
 
-    best_item = min(items, key=lambda item: item.properties["eo:cloud_cover"])
+    selected_item = items[0]
 
-    imagery_age_days = (datetime.now() - best_item.datetime.replace(tzinfo=None)).days
-    if imagery_age_days > settings.max_imagery_age_days:
-        raise ImageryNotFoundError(
-            f"No recent satellite imagery found for ({coords.lat}, {coords.lon}). "
-            f"Best available scene is {imagery_age_days} days old "
-            f"(maximum accepted: {settings.max_imagery_age_days} days). "
-            "Try again when a more recent pass is available, or raise MAX_IMAGERY_AGE_DAYS to accept older data."
-        )
+    # No separate staleness check needed here — search_window_days already bounds
+    # how far back the STAC query looks, so nothing older than that can be selected.
+    imagery_age_days = (datetime.now() - selected_item.datetime.replace(tzinfo=None)).days
 
     log.debug(
-        "Selected best item | id=%s cloud_cover=%.1f%% age_days=%d",
-        best_item.id, best_item.properties["eo:cloud_cover"], imagery_age_days
+        "Selected item | id=%s cloud_cover=%.1f%% age_days=%d",
+        selected_item.id, selected_item.properties["eo:cloud_cover"], imagery_age_days
     )
 
     try:
-        signed_item = planetary_computer.sign(best_item)
+        signed_item = planetary_computer.sign(selected_item)
     except Exception as e:
         raise ImagerySigningError(
-            f"Failed to sign imagery item '{best_item.id}': {e}"
+            f"Failed to sign imagery item '{selected_item.id}': {e}"
         ) from e
 
     metadata = {
         "item_id":     signed_item.id,
         "collection":  signed_item.collection_id,
-        "datetime":    best_item.datetime.isoformat(),
-        "cloud_cover": best_item.properties["eo:cloud_cover"],
+        "datetime":    selected_item.datetime.isoformat(),
+        "cloud_cover": selected_item.properties["eo:cloud_cover"],
         "bbox":        bbox,
     }
 

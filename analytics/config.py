@@ -14,7 +14,10 @@ class AquaSettings(BaseSettings):
     satillite_service: str = "https://planetarycomputer.microsoft.com/api/stac/v1"
     search_collections: List[str] = ["sentinel-2-l2a"]
     search_query: Dict[str, Any] = {"eo:cloud_cover": {"lt": 20}}
-    max_imagery_age_days: int = 365
+    # How far back to search for candidate scenes. Sentinel-2 revisits ~every 5 days,
+    # so 30 days gives ~6 passes to find one clearing the cloud-cover filter. This is
+    # the sole staleness control — the STAC query itself never returns anything older.
+    search_window_days: int = 30
 
     # ── LLM — Groq ────────────────────────────────────────────────────────────
     groq_api_key: str
