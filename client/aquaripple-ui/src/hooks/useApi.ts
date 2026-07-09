@@ -1,15 +1,17 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import type LocationLookupResponse from '../types/LocationLookupResponse'
+import type { AnalysisMode } from '../types/Wateranalysisresponse';
 
 // Analysis endpoint
-export const useAnalysis = (latitude: number, longitude: number) => {
+export const useAnalysis = (latitude: number, longitude: number, mode: AnalysisMode = 'rules') => {
   return useQuery({
-    queryKey: ['analysis', latitude, longitude],
+    queryKey: ['analysis', latitude, longitude, mode],
     queryFn: () =>
       apiClient.post('/api/analysis/analyse', {
         latitude,
         longitude,
+        mode,
       }),
     enabled: latitude !== undefined && longitude !== undefined,
   });

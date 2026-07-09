@@ -16,8 +16,9 @@ public class AnalysisController : ControllerBase
     }
 
     /// <summary>
-    /// Proxies to the Python analysis service — downloads satellite imagery
-    /// and runs Groq LLM analysis for the given coordinates.
+    /// Proxies to the Python analysis service — downloads satellite imagery and runs
+    /// water quality analysis for the given coordinates, via either the Groq LLM ("ai")
+    /// or the deterministic spectral rules engine ("rules", the default).
     /// Rate limited via GlobalLimiter: max 3 concurrent globally, max 5/min per IP.
     /// </summary>
     [HttpPost("analyse")]
@@ -26,7 +27,8 @@ public class AnalysisController : ControllerBase
         var result = await _analysisService.AnalyseAsync(
             request.Latitude,
             request.Longitude,
-            request.WaterBodyName);
+            request.WaterBodyName,
+            request.Mode);
 
         return Ok(result);
     }

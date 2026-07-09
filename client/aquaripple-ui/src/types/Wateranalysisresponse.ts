@@ -3,6 +3,7 @@ export type ClarityLevel = "clear" | "moderate" | "turbid" | "opaque";
 export type BloomSeverity = "none" | "minor" | "moderate" | "severe";
 export type SafetyStatus = "safe" | "caution" | "unsafe";
 export type OverallQuality = "excellent" | "good" | "fair" | "poor" | "very_poor";
+export type AnalysisMode = "ai" | "rules";
 
 export interface SafetyResult {
     status: SafetyStatus;
@@ -10,7 +11,13 @@ export interface SafetyResult {
 }
 
 export interface WaterAnalysisResponse {
-    mode: "ai";
+    // The engine that actually produced this result — may be "rules" even when
+    // "ai" was requested, if Groq was rate limited (see `fallback`). History can
+    // include records from before mode-tracking existed, so this isn't guaranteed
+    // to be "ai" | "rules" — anything else should render as an unknown source.
+    mode: string;
+    fallback?: boolean;
+    fallback_reason?: string | null;
     item_id: string;
     datetime: string;
     overall_quality: OverallQuality;

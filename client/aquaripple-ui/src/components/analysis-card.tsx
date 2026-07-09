@@ -1,5 +1,6 @@
 import React from "react";
 import type { WaterAnalysisResponse, SafetyStatus, OverallQuality } from "../types/Wateranalysisresponse";
+import ModeBadge from "./mode-badge";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -77,7 +78,10 @@ const AnalysisCard: React.FC<AnalysisCardProps> = ({ data, label, onClick }) => 
                         {qc.label} quality
                     </span>
                 </div>
-                <span className="text-xs text-gray-400">{satelliteDate}</span>
+                <div className="flex items-center gap-2">
+                    <ModeBadge mode={data.mode} fallback={data.fallback} />
+                    <span className="text-xs text-gray-400">{satelliteDate}</span>
+                </div>
             </div>
 
             {/* Card body */}

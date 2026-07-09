@@ -1,6 +1,6 @@
 import React from "react";
 
-type BadgeVariant = "water" | "land" | "warning" | "info";
+type BadgeVariant = "water" | "land" | "warning" | "info" | "neutral";
 
 interface BadgeProps {
     variant?: BadgeVariant;
@@ -13,6 +13,7 @@ const variantClasses: Record<BadgeVariant, string> = {
     land:    "bg-ripple/10        text-ripple      border border-ripple/30",
     warning: "bg-amber-50         text-amber-700   border border-amber-200",
     info:    "bg-aqua-accent/10   text-aqua-dark   border border-aqua-accent/30",
+    neutral: "bg-gray-50          text-gray-500    border border-gray-200",
 };
 
 const Badge: React.FC<BadgeProps> = ({ variant = "info", children, className = "" }) => {

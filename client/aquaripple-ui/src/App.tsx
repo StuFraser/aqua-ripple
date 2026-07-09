@@ -7,12 +7,17 @@ import About from './layout/about'
 import MapSearch from './components/map-search'
 import MapView, { type MapViewHandle } from './components/map-view'
 import MapInfo from './components/map-info'
+import AnalysisModeToggle from './components/analysis-mode-toggle'
+import { useAnalysisMode } from './hooks/useAnalysisMode'
 
 function App() {
     const [currentView, setCurrentView] = useState<"map" | "about">("map");
     const [clickedLocation, setClickedLocation] = useState<[number, number] | undefined>(undefined);
     const mapRef = useRef<MapViewHandle>(null);
     const [mobileTab, setMobileTab] = useState<"map" | "info">("map");
+    // Owned here (not by the results panel) — this is a setting for which method
+    // the *next* triggered analysis uses, not a filter over already-fetched results.
+    const [analysisMode, setAnalysisMode] = useAnalysisMode();
 
     const handleSearchSelect = (lat: number, lng: number) => {
         mapRef.current?.flyTo(lat, lng);
@@ -49,8 +54,9 @@ function App() {
 
                     {/* Map column */}
                     <div className={`flex-1 flex flex-col min-w-0 ${mobileTab === "info" ? "hidden md:flex" : "flex"}`}>
-                        <div className="p-3 border-b border-gray-200 bg-white flex items-center gap-2">
+                        <div className="p-3 border-b border-gray-200 bg-white flex items-center gap-2 flex-wrap">
                             <MapSearch onResultSelect={handleSearchSelect} />
+                            <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} compact />
                         </div>
                         <div className="flex-1 overflow-hidden">
                             <MapView ref={mapRef} onLocationSelect={(loc) => {
@@ -66,7 +72,7 @@ function App() {
         w-full overflow-y-auto bg-white
         ${mobileTab === "map" ? "hidden md:block" : "block flex-1"}
     `}>
-                        <MapInfo clickedLocation={clickedLocation} />
+                        <MapInfo clickedLocation={clickedLocation} mode={analysisMode} />
                     </aside>
 
                 </main>

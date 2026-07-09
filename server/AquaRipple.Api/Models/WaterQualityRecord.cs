@@ -14,6 +14,12 @@ public class WaterQualityRecord
     public double Longitude { get; set; }
     public DateTime RecordedAt { get; set; }
 
+    // "ai" or "rules" — the analysis path that actually produced ResultJson.
+    // Not necessarily the mode the caller requested: an "ai" request that hit
+    // Groq's rate limit is recorded here as "rules" with Fallback = true.
+    public string Mode { get; set; } = null!;
+    public bool Fallback { get; set; }
+
     // The full analysis result from the analytics service — stored as raw JSON
     // so we're not duplicating the Python model in C# until we need to
     public string ResultJson { get; set; } = null!;

@@ -8,12 +8,14 @@ from typing import Dict
 import httpx
 from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
+from typing import Literal
 import pystac_client
 import planetary_computer
 
 from config import get_settings, configure_logging, AquaSettings
 from models import WaterQualityResult
 from rules_engine import build_activity_safety, derive_overall_quality
+from rule_quality_analysis import derive_indicators, IndicesUnavailableError
 from spectral import compute_spectral_indices, SpectralIndices, BandDownloadError, InsufficientWaterError
 
 # ── Logging setup ─────────────────────────────────────────────────────────────
@@ -46,6 +48,7 @@ app = FastAPI(title="AquaRipple Water Quality Analyser")
 class Coordinates(BaseModel):
     lat: float
     lon: float
+    mode: Literal["ai", "rules"] = "rules"
 
 # ── STAC imagery fetch ────────────────────────────────────────────────────────
 
@@ -268,14 +271,29 @@ def llm_interpret_indices(
 
 # ── Core analysis pipeline ────────────────────────────────────────────────────
 
+def _derive_indicators_safe(indices: SpectralIndices, item_id: str) -> dict:
+    """Wraps derive_indicators so any failure maps to the same RulesEngineError as the activity-safety stage."""
+    try:
+        return derive_indicators(indices)
+    except IndicesUnavailableError as e:
+        raise RulesEngineError(
+            f"Rule engine failed to derive indicators for item '{item_id}': {e}"
+        ) from e
+
+
 def analyse_water_quality(
     signed_item,
     bbox: list[float],
     metadata: dict,
     settings: AquaSettings,
+    mode: Literal["ai", "rules"],
 ) -> WaterQualityResult:
     """
-    Full pipeline: download bands -> compute indices -> LLM interpretation -> rules engine.
+    Full pipeline: download bands -> compute indices -> interpret -> rules engine.
+
+    "ai" and "rules" are alternative, mutually exclusive paths to producing
+    `indicators` — rules never supplements the LLM, only replaces it (either
+    by request, or as a fallback if Groq is rate limited).
     """
     log.debug("Computing spectral indices | item_id=%s", metadata["item_id"])
     t0 = time.perf_counter()
@@ -286,8 +304,29 @@ def analyse_water_quality(
         (indices.water_pixel_fraction or 0) * 100
     )
 
-    indicators = llm_interpret_indices(indices, metadata, settings)
-    log.debug("Indicators | item_id=%s indicators=%s", metadata["item_id"], indicators)
+    fallback = False
+    fallback_reason = None
+    actual_mode = mode
+
+    if mode == "ai":
+        try:
+            indicators = llm_interpret_indices(indices, metadata, settings)
+        except LLMRateLimitError as e:
+            log.warning(
+                "Groq rate limited — falling back to rule engine | item_id=%s",
+                metadata["item_id"]
+            )
+            indicators = _derive_indicators_safe(indices, metadata["item_id"])
+            actual_mode = "rules"
+            fallback = True
+            fallback_reason = "groq_rate_limited"
+    else:
+        indicators = _derive_indicators_safe(indices, metadata["item_id"])
+
+    log.debug(
+        "Indicators | item_id=%s mode=%s indicators=%s",
+        metadata["item_id"], actual_mode, indicators
+    )
 
     try:
         activity_safety = build_activity_safety(indicators)
@@ -298,7 +337,9 @@ def analyse_water_quality(
         ) from e
 
     result_dict = {
-        "mode":            "indices",
+        "mode":            actual_mode,
+        "fallback":        fallback,
+        "fallback_reason": fallback_reason,
         "item_id":         metadata["item_id"],
         "datetime":        metadata["datetime"],
         "indicators":      indicators,
@@ -314,8 +355,8 @@ def analyse_water_quality(
         ) from e
 
     log.info(
-        "Analysis complete | item_id=%s overall_quality=%s cloud_cover=%.1f%% water_fraction=%.1f%%",
-        metadata["item_id"], result.overall_quality,
+        "Analysis complete | item_id=%s mode=%s fallback=%s overall_quality=%s cloud_cover=%.1f%% water_fraction=%.1f%%",
+        metadata["item_id"], actual_mode, fallback, result.overall_quality,
         metadata["cloud_cover"],
         (indices.water_pixel_fraction or 0) * 100,
     )
@@ -334,12 +375,12 @@ async def analyse(
     coords: Coordinates,
     settings: AquaSettings = Depends(get_settings),
 ):
-    log.info("Analyse request | lat=%.5f lon=%.5f", coords.lat, coords.lon)
+    log.info("Analyse request | lat=%.5f lon=%.5f mode=%s", coords.lat, coords.lon, coords.mode)
     t0 = time.perf_counter()
 
     try:
         signed_item, bbox, metadata = get_signed_item(coords, settings)
-        result = analyse_water_quality(signed_item, bbox, metadata, settings)
+        result = analyse_water_quality(signed_item, bbox, metadata, settings, coords.mode)
 
         log.info(
             "Analyse complete | lat=%.5f lon=%.5f elapsed=%.2fs",

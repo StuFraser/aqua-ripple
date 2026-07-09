@@ -1,13 +1,15 @@
 import PinInfo from "./pin-info";
 import LocationResults from "./location-results";
 import type LocationLookupResponse from "../types/LocationLookupResponse";
+import type { AnalysisMode } from "../types/Wateranalysisresponse";
 import { useCheckWet } from "../hooks/useApi";
 
 interface MapInfoProps {
     clickedLocation: [number, number] | undefined;
+    mode: AnalysisMode;
 }
 
-const MapInfo: React.FC<MapInfoProps> = ({ clickedLocation }) => {
+const MapInfo: React.FC<MapInfoProps> = ({ clickedLocation, mode }) => {
     const { data: locationData, isLoading, isError } = useCheckWet(
         clickedLocation?.[0] ?? 0,
         clickedLocation?.[1] ?? 0
@@ -32,12 +34,13 @@ const MapInfo: React.FC<MapInfoProps> = ({ clickedLocation }) => {
                 locationData={locationData as LocationLookupResponse}
             />
 
-            <div className="border-t border-gray-100 pt-4">
-                <h2 className="text-sm font-semibold text-aqua-dark uppercase tracking-wider mb-3">Water Quality</h2>
+            <div className="border-t border-gray-100 pt-4 flex flex-col gap-3">
+                <h2 className="text-sm font-semibold text-aqua-dark uppercase tracking-wider">Water Quality</h2>
                 <LocationResults
                     clickedLocation={clickedLocation}
                     isWaterBody={locationData?.is_water}
                     waterName={locationData?.name}
+                    mode={mode}
                 />
             </div>
         </div>

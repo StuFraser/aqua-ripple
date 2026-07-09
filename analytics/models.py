@@ -87,7 +87,9 @@ class ActivitySafety(BaseModel):
 
 
 class WaterQualityResult(BaseModel):
-    mode: Literal["ai", "indices"]
+    mode: Literal["ai", "rules"]
+    fallback: bool = False
+    fallback_reason: Optional[str] = None
     item_id: str
     datetime: datetime
     indicators: WaterQualityIndicators

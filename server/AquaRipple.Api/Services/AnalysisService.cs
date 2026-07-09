@@ -24,7 +24,8 @@ public class AnalysisService
     public async Task<LocationAnalysisResponse> AnalyseAsync(
         double latitude,
         double longitude,
-        string? waterBodyName)
+        string? waterBodyName,
+        string mode)
     {
         if (!string.IsNullOrWhiteSpace(waterBodyName))
         {
@@ -32,8 +33,8 @@ public class AnalysisService
             if (cached != null)
             {
                 _logger.LogInformation(
-                    "Cache hit | waterBody={WaterBodyName} lat={Lat} lon={Lon}",
-                    waterBodyName, latitude, longitude);
+                    "Cache hit | waterBody={WaterBodyName} lat={Lat} lon={Lon} requestedMode={RequestedMode} cachedMode={CachedMode}",
+                    waterBodyName, latitude, longitude, mode, cached.Mode);
 
                 var cachedHistory = await _historyService.GetHistoryAsync(waterBodyName, latitude, longitude);
                 return BuildResponse(cached.ResultJson, cachedHistory, excludeId: cached.Id);
@@ -41,13 +42,13 @@ public class AnalysisService
         }
 
         // No cache hit — call analytics service
-        var payload = JsonSerializer.Serialize(new { lat = latitude, lon = longitude });
+        var payload = JsonSerializer.Serialize(new { lat = latitude, lon = longitude, mode });
         var content = new StringContent(payload, Encoding.UTF8, "application/json");
 
         HttpResponseMessage response;
         try
         {
-            response = await _httpClient.PostAsync("analyse?analysis_mode=true", content);
+            response = await _httpClient.PostAsync("analyse", content);
         }
         catch (TaskCanceledException ex)
         {
@@ -71,15 +72,25 @@ public class AnalysisService
                     "Analytics service returned {StatusCode} | lat={Lat} lon={Lon} | body={Body}",
                     statusCode, latitude, longitude, body);
 
-            // Preserve the upstream status code (e.g. 429 Groq rate limit → 429 to client)
+            // Preserve the upstream status code. Note: a Groq 429 no longer reaches here in
+            // "ai" mode — the analytics service catches it and falls back to the rules engine.
             response.EnsureSuccessStatusCode();
         }
 
         var resultJson = await response.Content.ReadAsStringAsync();
 
+        // The analytics service reports the mode it actually used, which may differ from
+        // the requested mode (e.g. an "ai" request that fell back to "rules" on a 429).
+        using var resultDoc = JsonDocument.Parse(resultJson);
+        var actualMode = resultDoc.RootElement.TryGetProperty("mode", out var modeProp)
+            ? modeProp.GetString() ?? mode
+            : mode;
+        var fallback = resultDoc.RootElement.TryGetProperty("fallback", out var fallbackProp)
+            && fallbackProp.ValueKind == JsonValueKind.True;
+
         if (!string.IsNullOrWhiteSpace(waterBodyName))
         {
-            await _historyService.SaveAsync(waterBodyName, latitude, longitude, resultJson);
+            await _historyService.SaveAsync(waterBodyName, latitude, longitude, resultJson, actualMode, fallback);
             var history = await _historyService.GetHistoryAsync(waterBodyName, latitude, longitude);
             return BuildResponse(resultJson, history, excludeLatest: true);
         }

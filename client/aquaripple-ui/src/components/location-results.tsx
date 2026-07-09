@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { WaterAnalysisResponse } from "../types/Wateranalysisresponse";
+import type { WaterAnalysisResponse, AnalysisMode } from "../types/Wateranalysisresponse";
 import type { LocationAnalysisResponse } from "../types/LocationAnalysis";
 import AnalysisCard from "./analysis-card";
 import AnalysisModal from "./analysis-modal";
@@ -11,12 +11,14 @@ import { apiClient, isApiError } from "../api/client";
 const fetchAnalysis = async (
     lat: number,
     lng: number,
-    waterBodyName: string | null
+    waterBodyName: string | null,
+    mode: AnalysisMode
 ): Promise<LocationAnalysisResponse> => {
     return apiClient.post<LocationAnalysisResponse>('/api/analysis/analyse', {
         latitude: lat,
         longitude: lng,
         waterBodyName: waterBodyName ?? undefined,
+        mode,
     });
 };
 
@@ -157,14 +159,15 @@ interface LocationResultsProps {
     clickedLocation: [number, number] | undefined;
     isWaterBody: boolean | undefined;
     waterName: string | null | undefined;
+    mode: AnalysisMode;
 }
 
-const LocationResults: React.FC<LocationResultsProps> = ({ clickedLocation, isWaterBody, waterName }) => {
+const LocationResults: React.FC<LocationResultsProps> = ({ clickedLocation, isWaterBody, waterName, mode }) => {
     const [modalData, setModalData] = useState<WaterAnalysisResponse | null>(null);
 
     const { data, isFetching, isError, error } = useQuery({
-        queryKey: ['analysis', clickedLocation, waterName],
-        queryFn: () => fetchAnalysis(clickedLocation![0], clickedLocation![1], waterName ?? null),
+        queryKey: ['analysis', clickedLocation, waterName, mode],
+        queryFn: () => fetchAnalysis(clickedLocation![0], clickedLocation![1], waterName ?? null, mode),
         enabled: !!clickedLocation && isWaterBody === true,
     });
 
@@ -191,7 +194,9 @@ const LocationResults: React.FC<LocationResultsProps> = ({ clickedLocation, isWa
                     Analysing satellite imagery…
                 </div>
                 <p className="text-xs text-gray-400 leading-relaxed">
-                    Fetching the clearest recent pass and running AI analysis. This can take up to 30 seconds.
+                    {mode === "ai"
+                        ? "Fetching the clearest recent pass and running AI analysis. This can take up to 30 seconds."
+                        : "Fetching the clearest recent pass and computing spectral indices."}
                 </p>
             </div>
         );

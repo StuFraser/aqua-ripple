@@ -41,6 +41,7 @@ public class AnalysisHistoryService
         {
             new(Builders<WaterQualityRecord>.IndexKeys
                 .Ascending(r => r.WaterBodyName)
+                .Ascending(r => r.Mode)
                 .Descending(r => r.RecordedAt)),
 
             new(Builders<WaterQualityRecord>.IndexKeys
@@ -52,13 +53,15 @@ public class AnalysisHistoryService
     }
 
     /// <summary>
-    /// Finds an existing record matching by name + proximity within the cache window.
+    /// Finds the most recent existing record matching by name + proximity within the cache
+    /// window, regardless of which mode/engine produced it — the caller's requested mode
+    /// doesn't need to match. The record still carries its own Mode/Fallback, so whichever
+    /// engine actually produced it is surfaced accurately rather than assumed.
     /// Returns null if no match found.
     /// </summary>
     public async Task<WaterQualityRecord?> FindMatchAsync(string waterBodyName, double lat, double lon)
     {
         var windowStart = DateTime.UtcNow.AddHours(-_cacheWindowHours);
-        var radiusMetres = _radiusKm * 1000;
 
         var filter = Builders<WaterQualityRecord>.Filter.And(
             Builders<WaterQualityRecord>.Filter.Regex(
@@ -72,14 +75,16 @@ public class AnalysisHistoryService
             .SortByDescending(r => r.RecordedAt)
             .ToListAsync();
 
-        // Apply proximity filter in memory — candidate set is small (max 3 per location)
+        // Apply proximity filter in memory — candidate set is small (max 3 per mode per location)
         return candidates.FirstOrDefault(r => HaversineKm(lat, lon, r.Latitude, r.Longitude) <= _radiusKm);
     }
 
     /// <summary>
     /// Saves a new record and evicts the oldest if the sliding window is exceeded.
+    /// Mode and Fallback reflect what the analytics service actually used, which may
+    /// differ from what the caller requested (e.g. an AI request that fell back to rules).
     /// </summary>
-    public async Task SaveAsync(string waterBodyName, double lat, double lon, string resultJson)
+    public async Task SaveAsync(string waterBodyName, double lat, double lon, string resultJson, string mode, bool fallback)
     {
         var record = new WaterQualityRecord
         {
@@ -87,27 +92,35 @@ public class AnalysisHistoryService
             Latitude = lat,
             Longitude = lon,
             RecordedAt = DateTime.UtcNow,
+            Mode = mode,
+            Fallback = fallback,
             ResultJson = resultJson,
         };
 
         await _collection.InsertOneAsync(record);
 
         _logger.LogInformation(
-            "Saved analysis record | waterBody={WaterBodyName} lat={Lat} lon={Lon}",
-            waterBodyName, lat, lon);
+            "Saved analysis record | waterBody={WaterBodyName} lat={Lat} lon={Lon} mode={Mode} fallback={Fallback}",
+            waterBodyName, lat, lon, mode, fallback);
 
-        await EvictOldestIfOverLimitAsync(waterBodyName, lat, lon);
+        await EvictOldestIfOverLimitAsync(waterBodyName, lat, lon, mode);
     }
 
     /// <summary>
-    /// Returns all records for a location, newest first, excluding the current window
-    /// (i.e. the historical records, not the one just saved).
+    /// Returns records for a location, newest first. Pass <paramref name="mode"/> to restrict
+    /// to one engine (used internally for per-mode eviction accounting); omit it to return the
+    /// full history across all modes/engines for display — each record still carries its own
+    /// Mode/Fallback so the caller can label the source per entry rather than assuming one.
     /// </summary>
-    public async Task<List<WaterQualityRecord>> GetHistoryAsync(string waterBodyName, double lat, double lon)
+    public async Task<List<WaterQualityRecord>> GetHistoryAsync(string waterBodyName, double lat, double lon, string? mode = null)
     {
-        var filter = Builders<WaterQualityRecord>.Filter.Regex(
+        var nameFilter = Builders<WaterQualityRecord>.Filter.Regex(
             r => r.WaterBodyName,
             new MongoDB.Bson.BsonRegularExpression($"^{System.Text.RegularExpressions.Regex.Escape(waterBodyName)}$", "i"));
+
+        var filter = mode == null
+            ? nameFilter
+            : Builders<WaterQualityRecord>.Filter.And(nameFilter, Builders<WaterQualityRecord>.Filter.Eq(r => r.Mode, mode));
 
         var all = await _collection
             .Find(filter)
@@ -119,9 +132,11 @@ public class AnalysisHistoryService
             .ToList();
     }
 
-    private async Task EvictOldestIfOverLimitAsync(string waterBodyName, double lat, double lon)
+    private async Task EvictOldestIfOverLimitAsync(string waterBodyName, double lat, double lon, string mode)
     {
-        var all = await GetHistoryAsync(waterBodyName, lat, lon);
+        // Scoped to `mode` so each engine's history is capped independently — the combined
+        // display list can therefore hold up to _maxRecords per mode, not _maxRecords total.
+        var all = await GetHistoryAsync(waterBodyName, lat, lon, mode);
 
         if (all.Count <= _maxRecords) return;
 
