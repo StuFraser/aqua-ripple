@@ -146,6 +146,8 @@ def _groq_chat(messages: list[dict], settings: AquaSettings, max_tokens: int = 1
         "messages": messages,
         "max_tokens": max_tokens,
         "temperature": 0.1,
+        # Prevent prose or markdown around the object from breaking parsing.
+        "response_format": {"type": "json_object"},
     }
 
     try:
@@ -196,7 +198,7 @@ Indices:
 {indices_json}
 
 Reference ranges (guides):
-NDCI (chlorophyll): <0.0 low, 0.0-0.2 moderate, 0.2-0.4 high, >0.4 very_high
+NDCI (chlorophyll): <0.1 low, 0.1-0.2 moderate, 0.2-0.4 high, >0.4 very_high
 Turbidity Index (red/green): <0.6 low, 0.6-0.8 moderate, 0.8-1.0 high, >1.0 very_high
 FAI (floating algae): <-0.02 none, -0.02-0 minor, 0-0.05 moderate, >0.05 severe
 NTR (turbidity ratio): <0 low, 0-0.1 moderate, 0.1-0.2 high, >0.2 very_high
@@ -295,7 +297,7 @@ def analyse_water_quality(
 
     "ai" and "rules" are alternative, mutually exclusive paths to producing
     `indicators` — rules never supplements the LLM, only replaces it (either
-    by request, or as a fallback if Groq is rate limited).
+    by request, or as a fallback if the optional Groq call fails).
     """
     log.debug("Computing spectral indices | item_id=%s", metadata["item_id"])
     t0 = time.perf_counter()
@@ -313,15 +315,19 @@ def analyse_water_quality(
     if mode == "ai":
         try:
             indicators = llm_interpret_indices(indices, metadata, settings)
-        except LLMRateLimitError as e:
+        except (LLMRateLimitError, LLMResponseError) as e:
             log.warning(
-                "Groq rate limited — falling back to rule engine | item_id=%s",
-                metadata["item_id"]
+                "Groq AI analysis unavailable — falling back to rule engine | item_id=%s reason=%s",
+                metadata["item_id"], e,
             )
             indicators = _derive_indicators_safe(indices, metadata["item_id"])
             actual_mode = "rules"
             fallback = True
-            fallback_reason = "groq_rate_limited"
+            fallback_reason = (
+                "groq_rate_limited"
+                if isinstance(e, LLMRateLimitError)
+                else "groq_unavailable"
+            )
     else:
         indicators = _derive_indicators_safe(indices, metadata["item_id"])
 

@@ -18,22 +18,22 @@ activities:
         severity:
           none: safe
           minor: caution
-          moderate: unsafe
+          moderate: caution
           severe: unsafe
       chlorophyll_a:
         low: safe
         moderate: caution
-        high: unsafe
+        high: caution
         very_high: unsafe
       turbidity:
         low: safe
         moderate: safe
-        high: unsafe
+        high: caution
         very_high: unsafe
       water_clarity:
         clear: safe
         moderate: safe
-        turbid: unsafe
+        turbid: caution
         opaque: unsafe
     messages:
       safe: "Looking good for a swim today."
@@ -144,7 +144,7 @@ activities:
         severity:
           none: safe
           minor: caution
-          moderate: unsafe
+          moderate: caution
           severe: unsafe
       chlorophyll_a:
         low: safe

@@ -12,7 +12,7 @@ Drop a pin on any water body and AquaRipple will:
 
 - Fetch the most recent Sentinel-2 scene (within a rolling 30-day window) that clears a cloud-cover threshold
 - Download raw spectral bands and compute water quality indices directly from pixel data (NDWI, MNDWI, NDCI, FAI, turbidity index, and more)
-- Interpret those indices via either a **deterministic rules engine** (default — instant, free, no external calls) or **AI-assisted analysis** (opt-in, via Groq/Llama) to produce water quality indicators: chlorophyll-a, turbidity, algae bloom detection, water clarity, and cyanobacteria risk
+- Interpret those indices via either a **deterministic rules engine** (default — instant, free, no external calls) or **AI-assisted analysis** (opt-in, via Groq/GPT-OSS) to produce water quality indicators: chlorophyll-a, turbidity, algae bloom detection, water clarity, and cyanobacteria risk
 - Translate those indicators into plain-English activity safety ratings for swimming, fishing, boating, irrigation, and animal watering
 - Derive an overall water quality score — entirely in code from the indicators, not from AI guesswork
 - Surface historical comparisons — show how a water body's quality has shifted across recent satellite passes, tracked separately per analysis mode
@@ -50,7 +50,7 @@ AquaRipple is a polyglot microservices system. Each layer has a single, well-def
                                      ┌────────┴────────┐
                                      ▼                 ▼
                           ┌───────────────────┐  ┌──────────────────┐
-                          │   Rules Engine     │  │   Groq / Llama   │
+                          │   Rules Engine     │  │ Groq / GPT-OSS   │
                           │  (deterministic,   │  │  (AI-assisted,   │
                           │   default)          │  │   opt-in)        │
                           └───────────────────┘  └────────┬─────────┘
@@ -86,7 +86,7 @@ C# Gateway → MongoDB cache hit within radius?
                           │                                    │
                           ▼                                    ▼
                  Rule-based (default)                 AI-assisted (opt-in)
-                 Deterministic thresholds              Groq (Llama 3.3 70B)
+                 Deterministic thresholds              Groq (GPT-OSS 20B)
                  on the computed indices —              interprets computed indices —
                  instant, no external calls             falls back to rule-based on
                                                           a Groq rate limit (429)
@@ -127,7 +127,7 @@ C# Gateway → MongoDB cache hit within radius?
 | API Gateway       | C# · .NET 8                                                       |
 | Analytics Engine  | Python · FastAPI · Rasterio · NumPy                               |
 | Spectral Indices  | Computed from raw Sentinel-2 band data                            |
-| Indicator Analysis| Deterministic rules engine (default) or Groq — Llama 3.3 70B (opt-in, AI-assisted) |
+| Indicator Analysis| Deterministic rules engine (default) or Groq — GPT-OSS 20B (opt-in, AI-assisted) |
 | Water Detection   | GetWet API (Overture Maps data)                                   |
 | Place Search      | GeoNames API                                                      |
 | Satellite Imagery | Sentinel-2 L2A via Microsoft Planetary Computer                   |
@@ -164,7 +164,7 @@ aqua-ripple/
 
 **Two independent analysis paths behind one interface — AI as an enhancement, not a dependency.** Every request can be served by a fully deterministic rules engine (threshold-based interpretation of the spectral indices) or by AI-assisted interpretation via Groq, chosen by a manual client-side toggle that defaults to rule-based. Both paths return the same indicator shape and feed the same downstream activity-safety engine, so nothing else in the pipeline needs to know or care which one ran. This keeps the app fully usable — and free — with zero AI calls, while still giving genuine LLM integration a deliberate place to shine rather than making it a hard dependency for every request.
 
-**AI failures degrade gracefully, not loudly.** If AI mode is selected but Groq's rate limit is hit, the analytics service automatically falls back to the rules engine for that request instead of failing it outright — the response is explicitly flagged as a fallback so the UI never mislabels where a result actually came from.
+**AI failures degrade gracefully, not loudly.** If AI mode is selected but Groq is rate-limited, unavailable, or returns an invalid response, the analytics service automatically falls back to the rules engine for that request instead of failing it outright — the response is explicitly flagged as a fallback so the UI never mislabels where a result actually came from.
 
 **The LLM interprets numbers, not pictures.** When AI mode is used, Groq receives a dict of computed float values with reference ranges and returns calibrated indicator levels. Its job is cross-index reasoning and uncertainty estimation — not image analysis. This eliminates the optimism bias that comes from vision models pattern-matching against training data.
 
@@ -192,8 +192,8 @@ aqua-ripple/
 | --------------------------------------------------------------------------------- | -------------------------------------------- |
 | [European Space Agency (ESA)](https://www.esa.int/)                               | Sentinel-2 multispectral imagery             |
 | [Microsoft Planetary Computer](https://planetarycomputer.microsoft.com/)          | Imagery hosting and STAC API                 |
-| [Groq](https://groq.com/)                                                         | LLM inference (Llama 3.3 70B)                |
-| [Meta](https://ai.meta.com/llama/)                                                | Llama 3.3 70B model                          |
+| [Groq](https://groq.com/)                                                         | LLM inference (GPT-OSS 20B)                   |
+| [OpenAI](https://openai.com/)                                                     | GPT-OSS 20B model                             |
 | [GetWet](https://getwet-eha7a2fufhhyenae.australiaeast-01.azurewebsites.net/docs) | Water body point detection via Overture Maps |
 | [GeoNames](https://www.geonames.org/)                                             | Place and water body search                  |
 | [MongoDB Atlas](https://www.mongodb.com/atlas)                                    | Geospatial result caching & historical data  |

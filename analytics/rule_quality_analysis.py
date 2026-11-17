@@ -12,13 +12,18 @@ literature-derived starting points, not calibrated against ground truth — no
 labelled water-quality data exists for this project to calibrate against.
 """
 
-from typing import Optional
+from __future__ import annotations
 
-from spectral import SpectralIndices
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from spectral import SpectralIndices
 
 # ── Thresholds (mirror main.py's _ANALYSIS_USER_TEMPLATE reference ranges) ────
 
-NDCI_LOW_MAX = 0.0
+# A small positive NDCI is common in clear inland water. Treating every value
+# above zero as elevated made background signal look like a health concern.
+NDCI_LOW_MAX = 0.1
 NDCI_MODERATE_MAX = 0.2
 NDCI_HIGH_MAX = 0.4
 
@@ -111,17 +116,19 @@ def _water_clarity(turbidity_index: float) -> tuple[str, float]:
 
 def _cyanobacteria_level(chlorophyll_level: str, algae_severity: str) -> str:
     """
-    Mirrors the LLM prompt's stated heuristic: both indicators low -> low risk;
-    only one elevated -> moderate; both elevated -> scales with the worse of the two.
+    Require corroboration before elevating risk for weak signals. A modest NDCI
+    or a minor FAI signal alone is not enough evidence of cyanobacteria.
     """
     chl_ordinal = _LEVEL_ORDER.index(chlorophyll_level)
     algae_ordinal = _SEVERITY_ORDER.index(algae_severity)
 
-    if chl_ordinal == 0 and algae_ordinal == 0:
+    if chl_ordinal <= 1 and algae_ordinal <= 1:
         return "low"
     if chl_ordinal >= 1 and algae_ordinal >= 1:
         return _LEVEL_ORDER[max(chl_ordinal, algae_ordinal)]
-    return "moderate"
+    if chl_ordinal >= 2 or algae_ordinal >= 2:
+        return "moderate"
+    return "low"
 
 
 def derive_indicators(indices: SpectralIndices) -> dict:

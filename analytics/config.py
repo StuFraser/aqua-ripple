@@ -21,8 +21,9 @@ class AquaSettings(BaseSettings):
 
     # ── LLM — Groq ────────────────────────────────────────────────────────────
     groq_api_key: str
-    # llama-3.3-70b-versatile: strong instruction-following, reliable JSON output
-    groq_model: str = "llama-3.3-70b-versatile"
+    # GPT-OSS 20B is available on Groq's free tier and supports JSON Schema mode.
+    # The former llama-3.3-70b-versatile default was retired on 2026-08-16.
+    groq_model: str = "openai/gpt-oss-20b"
     groq_api_base: str = "https://api.groq.com/openai/v1"
 
     # ── Logging ───────────────────────────────────────────────────────────────
