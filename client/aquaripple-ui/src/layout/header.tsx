@@ -2,8 +2,8 @@ import React from "react";
 import banner from "../assets/aqua-ripple-banner.png";
 
 interface HeaderProps {
-    currentView: "map" | "about";
-    onNavigate: (view: "map" | "about") => void;
+    currentView: "map" | "feedback" | "about";
+    onNavigate: (view: "map" | "feedback" | "about") => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ currentView, onNavigate }) => {
@@ -21,6 +21,12 @@ const Header: React.FC<HeaderProps> = ({ currentView, onNavigate }) => {
                         className={`hover:text-aqua-brand transition-colors ${currentView === "map" ? "text-aqua-brand" : ""}`}
                     >
                         Map
+                    </button>
+                    <button
+                        onClick={() => onNavigate("feedback")}
+                        className={`hover:text-aqua-brand transition-colors ${currentView === "feedback" ? "text-aqua-brand" : ""}`}
+                    >
+                        Feedback
                     </button>
                     <button
                         onClick={() => onNavigate("about")}

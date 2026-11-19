@@ -75,6 +75,8 @@ builder.Services.AddScoped<GetWetService>();
 builder.Services.AddScoped<GeoNamesService>();
 builder.Services.AddScoped<AnalysisService>();
 builder.Services.AddScoped<AnalysisHistoryService>();
+builder.Services.AddScoped<IFeedbackValidationService, FeedbackValidationService>();
+builder.Services.AddSingleton<IGitHubDiscussionsService, GitHubDiscussionsService>();
 
 // ── Named HTTP clients with resilience pipelines ──────────────────────────────
 
@@ -180,6 +182,16 @@ builder.Services.AddHttpClient("GeoNames", client =>
     });
 });
 
+// GitHub Discussions is called only by the feedback endpoint. The personal
+// access token remains server-side; browsers never receive it.
+builder.Services.AddHttpClient("GitHub", client =>
+{
+    client.BaseAddress = new Uri("https://api.github.com/");
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("AquaRipple-Feedback/1.0");
+    client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+    client.Timeout = TimeSpan.FromSeconds(15);
+});
+
 // ── Auth ──────────────────────────────────────────────────────────────────────
 builder.Services
     .AddAuthentication("ApiKey")
@@ -240,15 +252,21 @@ builder.Services.AddRateLimiter(options =>
             context.HttpContext.Response.Headers.RetryAfter =
                 ((int)retryAfter.TotalSeconds).ToString();
 
-        var errorCode = hasRetryAfter ? "RATE_LIMITED" : "CONCURRENCY_LIMIT";
+        var isFeedback = context.HttpContext.Request.Path.StartsWithSegments("/api/feedback");
+        var errorCode = isFeedback ? "FEEDBACK_RATE_LIMITED"
+            : hasRetryAfter ? "RATE_LIMITED" : "CONCURRENCY_LIMIT";
 
         var problem = new
         {
-            title = errorCode == "RATE_LIMITED"
+            title = errorCode == "FEEDBACK_RATE_LIMITED"
+                ? "Too many feedback submissions. Please try again later."
+                : errorCode == "RATE_LIMITED"
                 ? "Too many analysis requests. Please wait before trying again."
                 : "Too many simultaneous analysis requests. Please try again in a moment.",
             status = 429,
-            detail = errorCode == "RATE_LIMITED"
+            detail = errorCode == "FEEDBACK_RATE_LIMITED"
+                ? "Feedback is limited to a few submissions per hour."
+                : errorCode == "RATE_LIMITED"
                 ? $"Rate limit exceeded. Try again in {(hasRetryAfter ? $"{(int)retryAfter.TotalSeconds} seconds" : "a moment")}."
                 : "The server is processing the maximum number of concurrent analyses.",
             errorCode,
@@ -257,6 +275,17 @@ builder.Services.AddRateLimiter(options =>
 
         await context.HttpContext.Response.WriteAsJsonAsync(problem, cancellationToken);
     };
+
+    options.AddPolicy("feedback", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 3,
+                Window = TimeSpan.FromHours(1),
+                QueueLimit = 0,
+                AutoReplenishment = true,
+            }));
 
     // GlobalLimiter accepts a PartitionedRateLimiter<HttpContext> directly, which is
     // what CreateChained returns. We gate on the request path so only the analysis

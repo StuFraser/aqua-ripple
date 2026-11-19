@@ -21,6 +21,7 @@ export type ApiErrorCode =
   | 'IMAGERY_NOT_FOUND'
   | 'INSUFFICIENT_WATER'
   | 'SATELLITE_WATER_UNRESOLVED'
+  | 'FEEDBACK_RATE_LIMITED'
   | 'CIRCUIT_OPEN'
   | 'RATE_LIMITED'
   | 'CONCURRENCY_LIMIT'
@@ -73,7 +74,7 @@ export const apiClient = {
         const body = await response.json();
         errorCode = (body.errorCode as ApiErrorCode) ?? 'UNKNOWN';
         title = body.title ?? title;
-        detail = body.detail ?? detail;
+        detail = body.detail ?? body.error ?? detail;
       } catch {
         // Non-JSON error body — keep the fallback values above
       }

@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import Header from './layout/header'
 import Footer from './layout/footer'
 import About from './layout/about'
+import Feedback from './layout/feedback'
 import MapSearch from './components/map-search'
 import MapView, { type MapViewHandle } from './components/map-view'
 import MapInfo from './components/map-info'
@@ -11,7 +12,7 @@ import AnalysisModeToggle from './components/analysis-mode-toggle'
 import { useAnalysisMode } from './hooks/useAnalysisMode'
 
 function App() {
-    const [currentView, setCurrentView] = useState<"map" | "about">("map");
+    const [currentView, setCurrentView] = useState<"map" | "feedback" | "about">("map");
     const [clickedLocation, setClickedLocation] = useState<[number, number] | undefined>(undefined);
     const mapRef = useRef<MapViewHandle>(null);
     const [mobileTab, setMobileTab] = useState<"map" | "info">("map");
@@ -27,10 +28,10 @@ function App() {
         <div className="flex flex-col h-screen bg-gray-50">
             <Header currentView={currentView} onNavigate={setCurrentView} />
 
-            {currentView === "about" ? (
+            {currentView === "about" || currentView === "feedback" ? (
                 <main className="flex-1 overflow-y-auto bg-white">
                     <div className="max-w-screen-2xl mx-auto px-4 py-8">
-                        <About />
+                        {currentView === "about" ? <About /> : <Feedback />}
                     </div>
                 </main>
             ) : (
