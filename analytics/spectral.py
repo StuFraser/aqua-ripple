@@ -31,8 +31,14 @@ log = logging.getLogger(__name__)
 # Minimum MNDWI value to classify a pixel as water
 MNDWI_WATER_THRESHOLD = 0.0
 
-# Minimum fraction of bbox that must be water to trust the indices
-MIN_WATER_FRACTION = 0.05
+# A requested point must be associated with a contiguous water feature.  A
+# percentage-of-bbox threshold rejects perfectly valid narrow rivers because the
+# sampling box intentionally includes several kilometres of surrounding land.
+# The B03 reference grid is 10 m, so these thresholds represent about 2,500 m²
+# of continuous water and a 100 m minimum feature extent.
+MIN_CONNECTED_WATER_PIXELS = 25
+MIN_CONNECTED_WATER_SPAN_PIXELS = 10
+MAX_TARGET_COMPONENT_DISTANCE_PIXELS = 10
 
 REQUIRED_BANDS = ["B03", "B04", "B05", "B08", "B11"]
 
@@ -73,6 +79,16 @@ class BandDownloadError(Exception):
 
 class InsufficientWaterError(Exception):
     """Too few water pixels to compute reliable indices."""
+
+
+@dataclass(frozen=True)
+class WaterComponent:
+    """A contiguous MNDWI-classified water feature near the requested point."""
+
+    mask: np.ndarray
+    pixel_count: int
+    longest_span_pixels: int
+    distance_to_target_pixels: float
 
 
 def _download_band_window(href: str, bbox: list[float]) -> np.ndarray:
@@ -133,6 +149,69 @@ def _water_mean(arr: np.ndarray, water_mask: np.ndarray) -> Optional[float]:
     return float(np.mean(vals))
 
 
+def _select_target_water_component(water_mask: np.ndarray) -> Optional[WaterComponent]:
+    """Return the 8-connected water component nearest the centre of the request.
+
+    The request coordinates are the centre of the downloaded bounding box.  This
+    ties the analysis to that waterway instead of averaging unrelated lakes,
+    rivers, or wet pixels elsewhere in the same box.
+    """
+    from skimage.measure import label
+
+    labels = label(water_mask, connectivity=2)
+    component_ids = np.unique(labels)
+    component_ids = component_ids[component_ids != 0]
+    if len(component_ids) == 0:
+        return None
+
+    target = np.array([(water_mask.shape[0] - 1) / 2, (water_mask.shape[1] - 1) / 2])
+    nearest = None
+
+    for component_id in component_ids:
+        positions = np.argwhere(labels == component_id)
+        squared_distances = np.sum((positions - target) ** 2, axis=1)
+        nearest_distance = float(np.sqrt(np.min(squared_distances)))
+        row_span = int(positions[:, 0].max() - positions[:, 0].min() + 1)
+        column_span = int(positions[:, 1].max() - positions[:, 1].min() + 1)
+        candidate = WaterComponent(
+            mask=labels == component_id,
+            pixel_count=len(positions),
+            longest_span_pixels=max(row_span, column_span),
+            distance_to_target_pixels=nearest_distance,
+        )
+        if nearest is None or candidate.distance_to_target_pixels < nearest.distance_to_target_pixels:
+            nearest = candidate
+
+    return nearest
+
+
+def _require_usable_target_component(component: Optional[WaterComponent]) -> WaterComponent:
+    """Validate that a component is connected, substantial, and near the pin."""
+    if component is None:
+        raise InsufficientWaterError("No pixels were classified as water near the requested coordinates.")
+
+    if component.distance_to_target_pixels > MAX_TARGET_COMPONENT_DISTANCE_PIXELS:
+        raise InsufficientWaterError(
+            "The nearest connected water feature is "
+            f"{component.distance_to_target_pixels * 10:.0f} m from the requested coordinates "
+            f"(maximum {MAX_TARGET_COMPONENT_DISTANCE_PIXELS * 10} m)."
+        )
+
+    if component.pixel_count < MIN_CONNECTED_WATER_PIXELS:
+        raise InsufficientWaterError(
+            f"Only {component.pixel_count} connected water pixels were found "
+            f"(minimum {MIN_CONNECTED_WATER_PIXELS})."
+        )
+
+    if component.longest_span_pixels < MIN_CONNECTED_WATER_SPAN_PIXELS:
+        raise InsufficientWaterError(
+            f"The connected water feature spans only {component.longest_span_pixels * 10} m "
+            f"(minimum {MIN_CONNECTED_WATER_SPAN_PIXELS * 10} m)."
+        )
+
+    return component
+
+
 def compute_spectral_indices(signed_item, bbox: list[float]) -> SpectralIndices:
     """
     Download required Sentinel-2 band windows and compute spectral indices.
@@ -186,20 +265,21 @@ def compute_spectral_indices(signed_item, bbox: list[float]) -> SpectralIndices:
 
     # ── Water mask (MNDWI > threshold over valid pixels) ──────────────────────
     mndwi_full = _safe_index(B03, B11)
-    water_mask = valid_mask & (mndwi_full > MNDWI_WATER_THRESHOLD)
+    candidate_water_mask = valid_mask & (mndwi_full > MNDWI_WATER_THRESHOLD)
+    target_component = _require_usable_target_component(
+        _select_target_water_component(candidate_water_mask)
+    )
+    water_mask = target_component.mask
     water_fraction = float(np.sum(water_mask) / total_pixels) if total_pixels > 0 else 0.0
 
     log.debug(
-        "Pixel stats | item_id=%s total=%d valid=%.1f%% water=%.1f%%",
-        item_id, total_pixels, valid_fraction * 100, water_fraction * 100
+        "Pixel stats | item_id=%s total=%d valid=%.1f%% target_water=%.1f%% "
+        "component_pixels=%d component_span=%dm target_distance=%dm",
+        item_id, total_pixels, valid_fraction * 100, water_fraction * 100,
+        target_component.pixel_count,
+        target_component.longest_span_pixels * 10,
+        target_component.distance_to_target_pixels * 10,
     )
-
-    if water_fraction < MIN_WATER_FRACTION:
-        raise InsufficientWaterError(
-            f"Only {water_fraction:.1%} of pixels classified as water "
-            f"(minimum {MIN_WATER_FRACTION:.0%}). "
-            "The coordinates may not be over a water body, or cloud/shadow coverage is high."
-        )
 
     # ── Compute indices ────────────────────────────────────────────────────────
 
