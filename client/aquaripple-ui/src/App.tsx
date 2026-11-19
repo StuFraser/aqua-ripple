@@ -71,7 +71,7 @@ function App() {
                     <aside className={`
         md:w-80 md:shrink-0 md:border-l md:border-gray-200 md:block
         w-full overflow-y-auto bg-white
-        ${mobileTab === "map" ? "hidden md:block" : "block flex-1"}
+        ${mobileTab === "map" ? "hidden md:block" : "block flex-1 md:flex-none"}
     `}>
                         <MapInfo clickedLocation={clickedLocation} mode={analysisMode} />
                     </aside>

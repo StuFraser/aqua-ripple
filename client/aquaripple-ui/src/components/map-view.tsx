@@ -114,6 +114,33 @@ function FlyToController({ flyToRef }: FlyToControllerProps) {
     return null;
 }
 
+interface MapViewportControllerProps {
+    selectedLocation: [number, number] | undefined;
+}
+
+/** Keep Leaflet's internal size in sync with its flex container and centre a new pin. */
+function MapViewportController({ selectedLocation }: MapViewportControllerProps) {
+    const map = useMap();
+
+    useEffect(() => {
+        const observer = new ResizeObserver(() => map.invalidateSize({ pan: false }));
+        observer.observe(map.getContainer());
+        return () => observer.disconnect();
+    }, [map]);
+
+    useEffect(() => {
+        if (!selectedLocation) return;
+
+        const frame = requestAnimationFrame(() => {
+            map.invalidateSize({ pan: false });
+            map.panTo(selectedLocation, { animate: true, duration: 0.25 });
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [map, selectedLocation]);
+
+    return null;
+}
+
 // ── Public handle ────────────────────────────────────────────────────────────
 
 export interface MapViewHandle {
@@ -210,6 +237,7 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(({ onLocationSelect }, r
                 
             >
                 <FlyToController flyToRef={flyToFnRef} />
+                <MapViewportController selectedLocation={clickedMarker} />
                 <MapEventHandler
                     onMapClick={handleMapClick}
                     lastWarmedLocationRef={lastWarmedLocationRef}
