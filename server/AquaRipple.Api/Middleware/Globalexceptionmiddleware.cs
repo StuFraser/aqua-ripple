@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using AquaRipple.Api.Services;
 using Polly.CircuitBreaker;
 
 namespace AquaRipple.Api.Middleware;
@@ -94,6 +95,13 @@ public class GlobalExceptionMiddleware
 
     private static (int statusCode, string errorCode, string title) ClassifyException(Exception ex)
     {
+        if (ex is AnalyticsDomainException analyticsEx
+            && analyticsEx.StatusCode == StatusCodes.Status422UnprocessableEntity)
+        {
+            return (StatusCodes.Status422UnprocessableEntity, "SATELLITE_WATER_UNRESOLVED",
+                "Satellite imagery cannot resolve this waterway at the selected point.");
+        }
+
         // Circuit breaker is open — the downstream service is known to be unavailable.
         // Return 503 immediately rather than letting the request attempt and timeout.
         if (ex is BrokenCircuitException or IsolatedCircuitException)
@@ -164,6 +172,11 @@ public class GlobalExceptionMiddleware
     /// </summary>
     private static string SanitiseMessage(Exception ex, HttpContext context)
     {
+        // AnalyticsDomainException is created only from the known, user-safe 422
+        // detail returned by our analytics service, so preserve its diagnostic.
+        if (ex is AnalyticsDomainException analyticsEx)
+            return analyticsEx.Message;
+
         var env = context.RequestServices.GetRequiredService<IWebHostEnvironment>();
         if (env.IsDevelopment())
             return ex.Message;

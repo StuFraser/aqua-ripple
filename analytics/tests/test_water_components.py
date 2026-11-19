@@ -30,14 +30,14 @@ class WaterComponentTests(unittest.TestCase):
         water_mask = np.zeros((120, 120), dtype=bool)
         water_mask[58:63, 58:63] = True
 
-        with self.assertRaisesRegex(InsufficientWaterError, "25 connected water pixels"):
+        with self.assertRaisesRegex(InsufficientWaterError, "at least 25"):
             _require_usable_target_component(_select_target_water_component(water_mask))
 
     def test_rejects_a_large_water_feature_too_far_from_the_requested_point(self):
         water_mask = np.zeros((120, 120), dtype=bool)
         water_mask[5:15, 5:35] = True
 
-        with self.assertRaisesRegex(InsufficientWaterError, "nearest connected water feature"):
+        with self.assertRaisesRegex(InsufficientWaterError, "nearest is"):
             _require_usable_target_component(_select_target_water_component(water_mask))
 
 

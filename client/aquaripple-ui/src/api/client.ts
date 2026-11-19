@@ -20,6 +20,7 @@ export type ApiErrorCode =
   | 'UPSTREAM_PARSE_ERROR'
   | 'IMAGERY_NOT_FOUND'
   | 'INSUFFICIENT_WATER'
+  | 'SATELLITE_WATER_UNRESOLVED'
   | 'CIRCUIT_OPEN'
   | 'RATE_LIMITED'
   | 'CONCURRENCY_LIMIT'
@@ -120,6 +121,7 @@ export const queryClient = new QueryClient({
           // until external state changes (next satellite pass, pin moved, etc.)
           if (error.errorCode === 'IMAGERY_NOT_FOUND') return false;
           if (error.errorCode === 'INSUFFICIENT_WATER') return false;
+          if (error.errorCode === 'SATELLITE_WATER_UNRESOLVED') return false;
           // Never retry rate limits or auth — retrying immediately makes things worse
           if (error.errorCode === 'UPSTREAM_RATE_LIMIT') return false;
           if (error.errorCode === 'RATE_LIMITED') return false;

@@ -54,6 +54,18 @@ function AnalysisError({ error }: { error: unknown }) {
             );
         }
 
+        if (error.errorCode === 'SATELLITE_WATER_UNRESOLVED') {
+            return (
+                <div className="flex flex-col gap-1.5 py-2 px-3 rounded-lg bg-slate-50 border border-slate-200">
+                    <div className="flex items-center gap-2">
+                        <span className="text-slate-500 text-sm">🛰️</span>
+                        <p className="text-xs font-semibold text-slate-700">Waterway too narrow for this satellite scene</p>
+                    </div>
+                    <p className="text-xs text-slate-600 leading-relaxed">{error.detail}</p>
+                </div>
+            );
+        }
+
         if (error.errorCode === 'RATE_LIMITED' || error.errorCode === 'CONCURRENCY_LIMIT') {
             return (
                 <div className="flex flex-col gap-1.5 py-2 px-3 rounded-lg bg-amber-50 border border-amber-200">

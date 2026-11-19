@@ -188,25 +188,30 @@ def _select_target_water_component(water_mask: np.ndarray) -> Optional[WaterComp
 def _require_usable_target_component(component: Optional[WaterComponent]) -> WaterComponent:
     """Validate that a component is connected, substantial, and near the pin."""
     if component is None:
-        raise InsufficientWaterError("No pixels were classified as water near the requested coordinates.")
+        raise InsufficientWaterError(
+            "The selected point is mapped as water, but this Sentinel-2 scene did not classify "
+            "any nearby pixels as water. The channel may be narrow, vegetated, shadowed, or below "
+            "the sensor's effective 20 m resolution."
+        )
 
     if component.distance_to_target_pixels > MAX_TARGET_COMPONENT_DISTANCE_PIXELS:
         raise InsufficientWaterError(
-            "The nearest connected water feature is "
-            f"{component.distance_to_target_pixels * 10:.0f} m from the requested coordinates "
-            f"(maximum {MAX_TARGET_COMPONENT_DISTANCE_PIXELS * 10} m)."
+            "The selected point is mapped as water, but Sentinel-2 did not detect a connected water "
+            f"feature at the pin (the nearest is {component.distance_to_target_pixels * 10:.0f} m away). "
+            "This channel may be too narrow or vegetated for this scene."
         )
 
     if component.pixel_count < MIN_CONNECTED_WATER_PIXELS:
         raise InsufficientWaterError(
-            f"Only {component.pixel_count} connected water pixels were found "
-            f"(minimum {MIN_CONNECTED_WATER_PIXELS})."
+            f"Sentinel-2 found only {component.pixel_count} connected water pixels near this mapped "
+            f"waterway (at least {MIN_CONNECTED_WATER_PIXELS} are needed for a reliable result)."
         )
 
     if component.longest_span_pixels < MIN_CONNECTED_WATER_SPAN_PIXELS:
         raise InsufficientWaterError(
-            f"The connected water feature spans only {component.longest_span_pixels * 10} m "
-            f"(minimum {MIN_CONNECTED_WATER_SPAN_PIXELS * 10} m)."
+            f"The connected water feature detected by Sentinel-2 spans only "
+            f"{component.longest_span_pixels * 10} m (at least {MIN_CONNECTED_WATER_SPAN_PIXELS * 10} m "
+            "is needed for a reliable result)."
         )
 
     return component

@@ -72,6 +72,9 @@ public class AnalysisService
                     "Analytics service returned {StatusCode} | lat={Lat} lon={Lon} | body={Body}",
                     statusCode, latitude, longitude, body);
 
+            if (statusCode == StatusCodes.Status422UnprocessableEntity)
+                throw new AnalyticsDomainException(statusCode, ExtractDetail(body));
+
             // Preserve the upstream status code. Note: a Groq 429 no longer reaches here in
             // "ai" mode — the analytics service catches it and falls back to the rules engine.
             response.EnsureSuccessStatusCode();
@@ -119,5 +122,24 @@ public class AnalysisService
             Current = JsonSerializer.Deserialize<JsonElement>(currentJson),
             History = historyItems
         };
+    }
+
+    private static string ExtractDetail(string body)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(body);
+            if (document.RootElement.TryGetProperty("detail", out var detail)
+                && detail.ValueKind == JsonValueKind.String)
+            {
+                return detail.GetString()!;
+            }
+        }
+        catch (JsonException)
+        {
+            // The generic message below is safe when the upstream body is malformed.
+        }
+
+        return "Satellite imagery cannot resolve enough water pixels at this mapped water location.";
     }
 }
