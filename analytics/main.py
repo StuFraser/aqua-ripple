@@ -149,6 +149,10 @@ def _groq_chat(messages: list[dict], settings: AquaSettings, max_tokens: int = 1
         # GPT-OSS is a reasoning model. Hide reasoning so the completion is
         # solely the schema-constrained JSON object.
         "reasoning_format": "hidden",
+        # The default medium effort can consume a short completion budget before
+        # it emits the final JSON object. This classification task needs only a
+        # small amount of reasoning, but enough room must remain for the schema.
+        "reasoning_effort": "low",
         "response_format": {
             "type": "json_schema",
             "json_schema": {
@@ -215,16 +219,7 @@ NTR (turbidity ratio): <0 low, 0-0.1 moderate, 0.1-0.2 high, >0.2 very_high
 Secchi depth: estimate from turbidity_index; lower turbidity -> deeper clarity.
 Cyanobacteria risk: based on NDCI + FAI together (both low -> low; either elevated -> moderate; both elevated -> high/very_high).
 
-Return exactly:
-{{
-  "indicators": {{
-    "chlorophyll_a":      {{"level": "low|moderate|high|very_high", "confidence": <float>}},
-    "turbidity":          {{"level": "low|moderate|high|very_high", "confidence": <float>}},
-    "algae_bloom":        {{"detected": <bool>, "severity": "none|minor|moderate|severe", "confidence": <float>}},
-    "water_clarity":      {{"level": "clear|moderate|turbid|opaque", "secchi_depth_estimate": <float>, "confidence": <float>}},
-    "cyanobacteria_risk": {{"level": "low|moderate|high|very_high", "confidence": <float>}}
-  }}
-}}
+Return an assessment that conforms exactly to the supplied JSON schema.
 
 Confidence guidance:
 - Increase when multiple indices agree and water_pixel_fraction is high.
@@ -335,7 +330,7 @@ def llm_interpret_indices(
             {"role": "user",   "content": user_msg},
         ],
         settings=settings,
-        max_tokens=512,
+        max_tokens=1024,
     )
     elapsed = time.perf_counter() - t0
 
